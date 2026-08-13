@@ -1,0 +1,44 @@
+{
+  "name": "dsh-plugin-marketplace",
+  "version": "0.1.0",
+  "description": "Plugin marketplace for DeepSeek Harness Web UI: browse github.com/topics/dsh-plugin right inside the settings page — search, sort by stars, and view install instructions.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web"
+    }
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "marketplace",
+    "web-ui"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Scorp1o117/dsh-plugin-marketplace.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Scorp1o117/dsh-plugin-marketplace/issues"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0"
+  }
+}
