@@ -1,5 +1,9 @@
 # dsh-plugin-marketplace
 
+[![中文文档](https://img.shields.io/badge/%E4%B8%AD%E6%96%87%E6%96%87%E6%A1%A3-blue)](README.zh.md)
+
+**GitHub**: [Scorp1o117/dsh-plugin-marketplace](https://github.com/Scorp1o117/dsh-plugin-marketplace) · **npm**: [dsh-plugin-marketplace](https://www.npmjs.com/package/dsh-plugin-marketplace)
+
 A **plugin marketplace** inside the DeepSeek Harness Web UI: browse
 [github.com/topics/dsh-plugin](https://github.com/topics/dsh-plugin) right
 from the settings page — no terminal needed.
