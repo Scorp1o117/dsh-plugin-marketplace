@@ -38,7 +38,7 @@ window.__ModuleLoader__.load({
       ".__mp_readme{font-size:12px;line-height:1.6;color:var(--dsw-alias-label-secondary);white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto;width:100%;box-sizing:border-box;min-width:0}" +
       ".__mp_code{display:block;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:6px;padding:8px 10px;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-all;width:100%;box-sizing:border-box;min-width:0}" +
       ".__mp_link{color:var(--dsw-alias-brand-primary);font-size:12px;text-decoration:none}" +
-      ".__mp_btnPrimary{border-color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-on-accent)}" +
+      ".__mp_btnPrimary{border-color:var(--dsw-alias-state-business-primary, #679efe);background:var(--dsw-alias-state-business-primary, #679efe);color:#fff}" +
       ".__mp_error{color:var(--dsw-alias-label-error);font-size:12px;margin:8px 0 0}";
     var tagId = "dsh-plugin-marketplace/main.css";
     if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
@@ -277,7 +277,13 @@ window.__ModuleLoader__.load({
       }, [load]);
       var openDetail = react.useCallback(function (plugin) {
         if (s.open && s.open.fullName === plugin.fullName) { set(function (prev) { return Object.assign({}, prev, { open: null }); }); return; }
-        set(function (prev) { return Object.assign({}, prev, { open: plugin, readme: null, readmeError: false, readmeLoading: true }); });
+        set(function (prev) { return Object.assign({}, prev, { open: plugin, readme: null, readmeError: false, readmeRateLimited: false, readmeLoading: true }); });
+        // The detail panel renders above the list; scroll it into view so the
+        // click is answered visibly even on long lists.
+        setTimeout(function () {
+          var el = document.querySelector(".__mp_detail");
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 50);
         fetchReadme(plugin.fullName).then(function (text) {
           set(function (prev) {
             if (!prev.open || prev.open.fullName !== plugin.fullName) return prev;
@@ -305,6 +311,9 @@ window.__ModuleLoader__.load({
           )
         ),
         s.total > 0 ? h("p", { className: "__mp_status" }, t("total").replace("{count}", String(s.total))) : null,
+        // Detail panel renders ABOVE the list so opening a plugin is visible
+        // without scrolling to the bottom.
+        s.open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError") }) : null,
         h("ul", { className: "__mp_grid" },
           s.items.map(function (p) { return h(PluginCard, { key: p.fullName, plugin: p, t: t, onOpen: function () { openDetail(p); } }); })
         ),
@@ -312,7 +321,6 @@ window.__ModuleLoader__.load({
         s.error ? h("p", { className: "__mp_error" }, s.error) : null,
         s.items.length === 0 && !s.loading && !s.error ? h("p", { className: "__mp_status" }, t("empty")) : null,
         s.items.length > 0 ? h("button", { type: "button", className: "__mp_more", onClick: more, disabled: s.loading }, t("loadMore")) : null,
-        s.open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError") }) : null,
         s.installError ? h("p", { className: "__mp_error" }, s.installError) : null
       );
     }
