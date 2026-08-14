@@ -19,6 +19,7 @@ window.__ModuleLoader__.load({
 
     // ── CSS (theme tokens) ────────────────────────────────────────────────
     var CSS = ".__mp_grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;padding:0;margin:0;list-style:none}" +
+      ".__mp_item{display:flex;flex-direction:column;gap:8px}" +
       ".__mp_card{border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;background:var(--dsw-alias-bg-layer-2);cursor:pointer;text-align:left;font:inherit;color:inherit}" +
       ".__mp_card:hover{border-color:var(--dsw-alias-brand-primary)}" +
       ".__mp_cardHead{display:flex;align-items:center;gap:8px;min-width:0}" +
@@ -278,11 +279,11 @@ window.__ModuleLoader__.load({
       var openDetail = react.useCallback(function (plugin) {
         if (s.open && s.open.fullName === plugin.fullName) { set(function (prev) { return Object.assign({}, prev, { open: null }); }); return; }
         set(function (prev) { return Object.assign({}, prev, { open: plugin, readme: null, readmeError: false, readmeRateLimited: false, readmeLoading: true }); });
-        // The detail panel renders above the list; scroll it into view so the
-        // click is answered visibly even on long lists.
+        // Detail expands inline under the clicked card; scroll minimally
+        // (nearest) only when it would fall outside the viewport.
         setTimeout(function () {
           var el = document.querySelector(".__mp_detail");
-          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }, 50);
         fetchReadme(plugin.fullName).then(function (text) {
           set(function (prev) {
@@ -311,11 +312,16 @@ window.__ModuleLoader__.load({
           )
         ),
         s.total > 0 ? h("p", { className: "__mp_status" }, t("total").replace("{count}", String(s.total))) : null,
-        // Detail panel renders ABOVE the list so opening a plugin is visible
-        // without scrolling to the bottom.
-        s.open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError") }) : null,
         h("ul", { className: "__mp_grid" },
-          s.items.map(function (p) { return h(PluginCard, { key: p.fullName, plugin: p, t: t, onOpen: function () { openDetail(p); } }); })
+          s.items.map(function (p) {
+            // Detail expands INLINE right under the clicked card, so there is
+            // no jumping around the page.
+            var open = s.open && s.open.fullName === p.fullName;
+            return h("div", { key: p.fullName, className: "__mp_item" },
+              h(PluginCard, { plugin: p, t: t, onOpen: function () { openDetail(p); } }),
+              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError") }) : null
+            );
+          })
         ),
         s.loading ? h("p", { className: "__mp_status" }, t("loading")) : null,
         s.error ? h("p", { className: "__mp_error" }, s.error) : null,
