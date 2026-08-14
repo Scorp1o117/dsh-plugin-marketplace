@@ -38,6 +38,7 @@ window.__ModuleLoader__.load({
       ".__mp_readme{font-size:12px;line-height:1.6;color:var(--dsw-alias-label-secondary);white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto;width:100%;box-sizing:border-box;min-width:0}" +
       ".__mp_code{display:block;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:6px;padding:8px 10px;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-all;width:100%;box-sizing:border-box;min-width:0}" +
       ".__mp_link{color:var(--dsw-alias-brand-primary);font-size:12px;text-decoration:none}" +
+      ".__mp_btnPrimary{border-color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-on-accent)}" +
       ".__mp_error{color:var(--dsw-alias-label-error);font-size:12px;margin:8px 0 0}";
     var tagId = "dsh-plugin-marketplace/main.css";
     if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
@@ -50,7 +51,7 @@ window.__ModuleLoader__.load({
 
     // ── locale ────────────────────────────────────────────────────────────
     var NS = "marketplace";
-    var inject = ["slots", "locale"];
+    var inject = ["slots", "locale", "settingsScope", "connection"];
     var zh = {
       nav: "插件市场",
       search: "搜索插件（关键词或留空浏览全部）…",
@@ -68,7 +69,14 @@ window.__ModuleLoader__.load({
       openNpm: "在 npm 搜索同名包 ↗",
       updated: "更新",
       total: "共 {count} 个插件",
-      ghError: "GitHub API 请求失败（未认证限流 60 次/小时），请稍后再试"
+      ghError: "GitHub API 请求失败（未认证限流 60 次/小时），请稍后再试",
+      installBtn: "一键安装",
+      confirmInstall: "确认安装 {pkg}？",
+      installing: "安装中…",
+      installOk: "已安装：{msg}",
+      installErr: "安装失败：{msg}",
+      installIdle: "",
+      installingHint: "正在后台执行 dsh plugin add，请稍候…"
     };
     var en = {
       nav: "Plugin Marketplace",
@@ -87,7 +95,14 @@ window.__ModuleLoader__.load({
       openNpm: "Search npm ↗",
       updated: "Updated",
       total: "{count} plugins",
-      ghError: "GitHub API rate-limited (60/hr unauthenticated), try again later"
+      ghError: "GitHub API rate-limited (60/hr unauthenticated), try again later",
+      installBtn: "Install",
+      confirmInstall: "Install {pkg}?",
+      installing: "Installing…",
+      installOk: "Installed: {msg}",
+      installErr: "Install failed: {msg}",
+      installIdle: "",
+      installingHint: "Running dsh plugin add in the background…"
     };
 
     // ── GitHub API ────────────────────────────────────────────────────────
@@ -128,7 +143,11 @@ window.__ModuleLoader__.load({
     async function fetchReadme(fullName) {
       var url = "https://api.github.com/repos/" + fullName + "/readme";
       var res = await fetch(url, { headers: { Accept: "application/vnd.github+json" } });
-      if (!res.ok) throw new Error("no readme");
+      if (!res.ok) {
+        var e = new Error("readme http " + res.status);
+        e.status = res.status;
+        throw e;
+      }
       var data = await res.json();
       var bin = atob(data.content.replace(/\s+/g, ""));
       var bytes = new Uint8Array(bin.length);
@@ -156,6 +175,32 @@ window.__ModuleLoader__.load({
     function DetailPanel(props) {
       var p = props.plugin;
       var installName = p.fullName.split("/")[1];
+      var st = props.installState; // {status, message, pkg} from the settings scope
+      var active = st && st.pkg === installName;
+      var status = active ? st.status : "idle";
+      var [confirming, setConfirming] = react.useState(false);
+      var statusNode = null;
+      if (status === "running") {
+        statusNode = h("div", { className: "__mp_status" }, props.t("installingHint"));
+      } else if (status === "ok") {
+        statusNode = h("div", { className: "__mp_status" }, props.t("installOk").replace("{msg}", st.message || ""));
+      } else if (status === "error") {
+        statusNode = h("div", { className: "__mp_error" }, props.t("installErr").replace("{msg}", st.message || ""));
+      }
+      var btn;
+      if (status === "running") {
+        btn = h("button", { type: "button", className: "__mp_more", disabled: true }, props.t("installing"));
+      } else if (confirming) {
+        btn = h("button", {
+          type: "button", className: "__mp_btnPrimary __mp_more",
+          onClick: function () { setConfirming(false); props.onInstall(installName); }
+        }, props.t("confirmInstall").replace("{pkg}", installName));
+      } else {
+        btn = h("button", {
+          type: "button", className: "__mp_btnPrimary __mp_more",
+          onClick: function () { setConfirming(true); }
+        }, props.t("installBtn"));
+      }
       return h("div", { className: "__mp_detail" },
         h("div", { className: "__mp_detailTitle" }, p.fullName),
         h("div", { className: "__mp_meta" },
@@ -175,9 +220,12 @@ window.__ModuleLoader__.load({
           "# then in $DSH_HOME/profiles/web/cordis.patch.yml:\n" +
           "- insert:\n    - id: " + installName + "\n      name: '" + installName + "'"
         ),
+        btn,
+        statusNode,
         h("div", { className: "__mp_detailTitle" }, props.t("readme")),
         h("div", { className: "__mp_readme" },
           props.readmeLoading ? props.t("loading")
+            : props.readmeRateLimited ? props.ghError
             : props.readmeError ? props.t("readmeEmpty")
             : (props.readme || "")
         )
@@ -186,8 +234,33 @@ window.__ModuleLoader__.load({
 
     function MarketplaceSection(props) {
       var t = props.t;
-      var state = react.useState({ q: "", sort: "stars", page: 1, items: [], loading: false, error: null, total: 0, open: null, readme: null, readmeLoading: false, readmeError: false });
+      var scope = props.scope;
+      var api = props.api;
+      var state = react.useState({ q: "", sort: "stars", page: 1, items: [], loading: false, error: null, total: 0, open: null, readme: null, readmeLoading: false, readmeError: false, readmeRateLimited: false });
       var s = state[0], set = state[1];
+      // install-state subscription (stable pattern: useState + subscribe, never
+      // depend on getSnapshot() reference identity).
+      var [installState, setInstallState] = react.useState(null);
+      react.useEffect(function () {
+        var alive = true;
+        var sync = function () { if (alive) setInstallState(scope.getSnapshot()); };
+        sync();
+        var un = typeof scope.subscribe === "function" ? scope.subscribe(sync) : null;
+        return function () { alive = false; if (un) un(); if (scope.dispose) scope.dispose(); };
+      }, [scope]);
+      var onInstall = react.useCallback(function (pkg) {
+        api.settings.mutate({
+          ns: "plugin-marketplace",
+          ops: [{ op: "set", path: ["install"], value: { pkg: pkg, ts: Date.now() } }]
+        }).then(function (response) {
+          if (!response.result.ok) {
+            var detail = response.result.error || {};
+            set(function (prev) { return Object.assign({}, prev, { installError: String(detail.message || detail.code || "unknown") }); });
+          }
+        }).catch(function (e) {
+          set(function (prev) { return Object.assign({}, prev, { installError: String(e && e.message || e) }); });
+        });
+      }, [api]);
       var load = react.useCallback(function (q, sort, page, append) {
         set(function (prev) { return Object.assign({}, prev, { loading: true, error: null }); });
         fetchPage(q, sort, page).then(function (out) {
@@ -208,12 +281,13 @@ window.__ModuleLoader__.load({
         fetchReadme(plugin.fullName).then(function (text) {
           set(function (prev) {
             if (!prev.open || prev.open.fullName !== plugin.fullName) return prev;
-            return Object.assign({}, prev, { readme: text.slice(0, 1200), readmeLoading: false });
+            return Object.assign({}, prev, { readme: text.slice(0, 1200), readmeLoading: false, readmeError: false, readmeRateLimited: false });
           });
-        }).catch(function () {
+        }).catch(function (err) {
           set(function (prev) {
             if (!prev.open || prev.open.fullName !== plugin.fullName) return prev;
-            return Object.assign({}, prev, { readmeLoading: false, readmeError: true });
+            var rateLimited = err && (err.status === 403 || err.status === 429);
+            return Object.assign({}, prev, { readmeLoading: false, readmeError: !rateLimited, readmeRateLimited: rateLimited });
           });
         });
       }, [s.open]);
@@ -238,7 +312,8 @@ window.__ModuleLoader__.load({
         s.error ? h("p", { className: "__mp_error" }, s.error) : null,
         s.items.length === 0 && !s.loading && !s.error ? h("p", { className: "__mp_status" }, t("empty")) : null,
         s.items.length > 0 ? h("button", { type: "button", className: "__mp_more", onClick: more, disabled: s.loading }, t("loadMore")) : null,
-        s.open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, lang: s.open.lang }) : null
+        s.open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError") }) : null,
+        s.installError ? h("p", { className: "__mp_error" }, s.installError) : null
       );
     }
 
@@ -246,6 +321,8 @@ window.__ModuleLoader__.load({
     function apply(ctx) {
       var t = ctx.locale.bind(NS);
       ctx.effect(function () { return ctx.locale.register(NS, { zh: zh, en: en }); }, "dsh-plugin-marketplace: dictionaries");
+      var scope = ctx.settingsScope.bind({ namespace: "plugin-marketplace" });
+      var api = ctx.connection.api;
       ctx.slots.inject("settings.section", function () {
         return ctx.slots.register({
           name: "settings.section",
@@ -253,7 +330,9 @@ window.__ModuleLoader__.load({
           order: 20,
           label: function () { return t("nav"); },
           locale: NS
-        }, MarketplaceSection);
+        }, function (props) {
+          return h(MarketplaceSection, Object.assign({}, props, { scope: scope, api: api }));
+        });
       });
     }
 
