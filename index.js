@@ -21,6 +21,8 @@ import { ensureSettingsNamespaceExposed } from "./vendor/dsh-settings-expose.js"
 
 /** Cordis plugin name. */
 const name = "plugin-marketplace";
+/** Services this plugin needs injected from the host tree (ctx.get requires inject). */
+const inject = ["llm", "agentDefaultModel"];
 /** Settings namespace owned by this plugin (Web UI settings section + install channel). */
 const NS = settingsNamespace("plugin-marketplace");
 
@@ -197,7 +199,7 @@ function apply(ctx, config) {
       const req = cfg?.aiExplain;
       if (!req || !req.repo || req.ts === lastExplainTs || req.ts === 0) return;
       lastExplainTs = req.ts;
-      const llm = ctx.get("llm");
+      const llm = ctx.llm;
       if (!llm) {
         await reportExplain("error", "LLM service unavailable; configure a model in Settings → Models.");
         return;
@@ -205,7 +207,7 @@ function apply(ctx, config) {
       // Route through the deployment's default model when one is configured.
       let route = null;
       try {
-        const defaults = ctx.get("agentDefaultModel")?.currentSelection?.();
+        const defaults = ctx.agentDefaultModel?.currentSelection?.();
         if (defaults?.provider && defaults?.model) route = defaults;
       } catch { /* no default model service; fall back to the adapter default */ }
       const repo = String(req.repo);
@@ -248,4 +250,4 @@ function apply(ctx, config) {
   }
 }
 
-export { Config, apply, name };
+export { Config, apply, inject, name };
