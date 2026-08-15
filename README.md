@@ -37,8 +37,22 @@ Manual mount in `$DSH_HOME/profiles/web/cordis.patch.yml`:
       name: 'dsh-plugin-marketplace'
 ```
 
+> **Upgrading from ≤ 0.2.2?** If you previously mounted the plugin manually,
+> **remove that row from `cordis.patch.yml`** before switching to the bundle
+> install — the bundle layer already inserts the entry, and two entries with
+> the same id abort boot with `duplicate loader entry id: plugin-marketplace`.
+> The two ways are alternatives, not both.
+
 Then restart `dsh web` (new client plugins require a process restart to be
 scanned into the browser roster) and open **Settings → Plugin Marketplace**.
+
+**If the install button answers `settings namespace "plugin-marketplace" is
+not exposed to configuration clients`**: the host apiproxy only lets a
+hard-coded allowlist through, and this plugin patches that allowlist on its
+first boot — the running process still answers `settings-not-exposed` until
+`dsh web` is restarted. Restart once; if the error persists, check the boot
+log for `[settings-expose]` lines (the fix line names the file to edit —
+`WEB_SETTINGS_NAMESPACES` in `dsh-host-apiproxy/lib/index.js`).
 
 ## How it works
 

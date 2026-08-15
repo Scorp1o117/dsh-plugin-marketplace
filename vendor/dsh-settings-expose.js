@@ -9,6 +9,18 @@
  * actually loaded by the host process, so the plugin's settings section
  * becomes visible in the Web UI without manual edits. A dsh update
  * overwrites the file; the next plugin start re-patches it.
+ *
+ * NOTE: dsh-host-apiproxy is an ESM package, so it never appears in the
+ * CommonJS `Module._cache` (lookup 1 only helps CJS hosts). Lookup 2 anchors
+ * on the running dsh bin, which always resolves the apiproxy as the app's
+ * own dependency; lookup 3 walks up from `@deepseek-ai/dsh-settings` for
+ * other npm layouts. pnpm-installed hosts resolve into an immutable store —
+ * the write then fails and the manual instruction below applies.
+ *
+ * Also note that patching the file only affects the NEXT process start: the
+ * running apiproxy already evaluated its allowlist at module load, so a
+ * settings channel opened mid-session still answers `settings-not-exposed`
+ * until `dsh web` is restarted.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -26,7 +38,7 @@ export function ensureSettingsNamespaceExposed(ctx, nsName, logger) {
   try {
     const target = findApiproxyIndex();
     if (!target) {
-      logger?.warn?.(`[settings-expose] could not locate dsh-host-apiproxy; add "${nsName}" to WEB_SETTINGS_NAMESPACES in dsh-host-apiproxy/lib/index.js to get a Web settings section`);
+      logger?.warn?.(`[settings-expose] could not locate dsh-host-apiproxy in this dsh install; the "${nsName}" settings channel will answer "not exposed". Fix: add "${nsName}" to WEB_SETTINGS_NAMESPACES in <dsh>/node_modules/@deepseek-ai/dsh-host-apiproxy/lib/index.js and restart dsh web`);
       return;
     }
     let src;
@@ -48,15 +60,16 @@ export function ensureSettingsNamespaceExposed(ctx, nsName, logger) {
       return;
     }
     writeFileSync(target, patched, "utf8");
-    logger?.info?.(`[settings-expose] added "${nsName}" to WEB_SETTINGS_NAMESPACES (${target}) — restart dsh web for the settings section to appear`);
+    logger?.info?.(`[settings-expose] added "${nsName}" to WEB_SETTINGS_NAMESPACES (${target}) — restart dsh web: the settings channel opens only in the NEXT process start`);
   } catch (error) {
-    logger?.warn?.(`[settings-expose] failed: ${String(error)}`);
+    logger?.warn?.(`[settings-expose] failed to expose "${nsName}" (${String(error)}); add it to WEB_SETTINGS_NAMESPACES in dsh-host-apiproxy/lib/index.js manually, then restart dsh web`);
   }
 }
 
 function findApiproxyIndex() {
   // 1) The host process has already loaded dsh-host-apiproxy: read the real
-  //    module path from the CommonJS module cache (any install layout).
+  //    module path from the CommonJS module cache (any install layout; ESM
+  //    hosts — every modern dsh — skip this).
   try {
     const Module = createRequire(import.meta.url)("module");
     const cache = Module._cache ?? {};
@@ -64,12 +77,30 @@ function findApiproxyIndex() {
       if (key.includes(`${sep}dsh-host-apiproxy${sep}`) && key.endsWith(`${sep}index.js`)) return key;
     }
   } catch { /* fall through */ }
-  // 2) Fallback: sibling of @deepseek-ai/dsh-settings (dsh's nested layout).
+  // 2) Resolve the apiproxy as a dependency of the running dsh app: the bin
+  //    (`node <dsh>/lib/bin.js`) anchors the app root in both shipped and
+  //    source layouts, and dsh-host-apiproxy is always one of its deps.
+  try {
+    const appRoot = dirname(dirname(process.argv[1] ?? ""));
+    const requireFromApp = createRequire(join(appRoot, "package.json"));
+    const entry = requireFromApp.resolve("@deepseek-ai/dsh-host-apiproxy");
+    if (entry.endsWith(`${sep}index.js`)) return entry;
+  } catch { /* fall through */ }
+  // 3) Walk up from @deepseek-ai/dsh-settings: the apiproxy is a scoped
+  //    sibling in the same dependency tree (flat/global and nested layouts).
   try {
     const require = createRequire(import.meta.url);
     const settingsEntry = require.resolve("@deepseek-ai/dsh-settings");
-    const candidate = join(dirname(dirname(dirname(settingsEntry))), "dsh-host-apiproxy", "lib", "index.js");
-    if (existsSync(candidate)) return candidate;
+    let dir = dirname(settingsEntry);
+    while (true) {
+      const scoped = join(dir, "@deepseek-ai", "dsh-host-apiproxy", "lib", "index.js");
+      if (existsSync(scoped)) return scoped;
+      const bare = join(dir, "dsh-host-apiproxy", "lib", "index.js");
+      if (existsSync(bare)) return bare;
+      const parent = dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
   } catch { /* fall through */ }
   return "";
 }

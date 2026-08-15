@@ -80,7 +80,8 @@ window.__ModuleLoader__.load({
       installingHint: "正在后台执行 dsh plugin add，请稍候…",
       aiExplain: "🤖 AI 解释",
       aiExplaining: "AI 解释中，请稍候…",
-      aiExplainErr: "AI 解释失败：{msg}"
+      aiExplainErr: "AI 解释失败：{msg}",
+      notExposed: "设置通道未就绪：插件市场的命名空间还没被配置客户端放行。刚安装/升级过的话，请重启 dsh web；若重启后仍报错，请查看启动日志里的 [settings-expose] 提示（可能需要手动把 \"plugin-marketplace\" 加入 dsh-host-apiproxy 的 WEB_SETTINGS_NAMESPACES）。"
     };
     var en = {
       nav: "Plugin Marketplace",
@@ -109,7 +110,8 @@ window.__ModuleLoader__.load({
       installingHint: "Running dsh plugin add in the background…",
       aiExplain: "🤖 AI Explain",
       aiExplaining: "AI is explaining…",
-      aiExplainErr: "AI explain failed: {msg}"
+      aiExplainErr: "AI explain failed: {msg}",
+      notExposed: "Settings channel not ready: the plugin-marketplace namespace is not yet exposed to configuration clients. If you just installed/upgraded, restart dsh web; if it persists, check the [settings-expose] lines in the boot log (you may need to add \"plugin-marketplace\" to WEB_SETTINGS_NAMESPACES in dsh-host-apiproxy/lib/index.js manually)."
     };
 
     // ── GitHub API ────────────────────────────────────────────────────────
@@ -244,7 +246,8 @@ window.__ModuleLoader__.load({
             onClick: function () { props.onExplain(p.fullName, p.desc, props.readme || ""); }
           }, props.t("aiExplain")),
           h("div", { id: "__mp_translateOut", style: { fontSize: "12px", lineHeight: "1.6", color: "var(--dsw-alias-label-secondary, #8b949e)", whiteSpace: "pre-wrap", wordBreak: "break-word", marginTop: "8px", borderTop: "1px solid var(--dsw-alias-border, #21262d)", paddingTop: "8px" } },
-            explainState && explainState.status === "running" ? props.t("aiExplaining")
+            props.explainError ? h("span", { style: { color: "var(--dsw-alias-state-danger-text, #f85149)" } }, props.explainError)
+              : explainState && explainState.status === "running" ? props.t("aiExplaining")
               : explainState && explainState.status === "error" ? props.t("aiExplainErr").replace("{msg}", explainState.text || "unknown")
               : explainState && explainState.status === "ok" ? explainState.text
               : ""
@@ -269,33 +272,41 @@ window.__ModuleLoader__.load({
         var un = typeof scope.subscribe === "function" ? scope.subscribe(sync) : null;
         return function () { alive = false; if (un) un(); if (scope.dispose) scope.dispose(); };
       }, [scope]);
+      // settings-not-exposed means the host allowlist gate refused the write:
+      // explain the restart/manual-fix path instead of showing the raw code.
+      var mutateError = function (detail, fallback) {
+        if (detail && detail.code === "settings-not-exposed") return t("notExposed");
+        return String(detail && (detail.message || detail.code) || fallback);
+      };
       var onInstall = react.useCallback(function (pkg) {
+        set(function (prev) { return Object.assign({}, prev, { installError: null }); });
         api.settings.mutate({
           ns: "plugin-marketplace",
           ops: [{ op: "set", path: ["install"], value: { pkg: pkg, ts: Date.now() } }]
         }).then(function (response) {
           if (!response.result.ok) {
             var detail = response.result.error || {};
-            set(function (prev) { return Object.assign({}, prev, { installError: String(detail.message || detail.code || "unknown") }); });
+            set(function (prev) { return Object.assign({}, prev, { installError: mutateError(detail, "unknown") }); });
           }
         }).catch(function (e) {
           set(function (prev) { return Object.assign({}, prev, { installError: String(e && e.message || e) }); });
         });
-      }, [api]);
+      }, [api, t]);
       // AI-explain request: the host answers over the same settings channel.
       var onExplain = react.useCallback(function (repo, desc, readme) {
+        set(function (prev) { return Object.assign({}, prev, { explainError: null }); });
         api.settings.mutate({
           ns: "plugin-marketplace",
           ops: [{ op: "set", path: ["aiExplain"], value: { repo: repo, desc: desc, readme: readme, ts: Date.now() } }]
         }).then(function (response) {
           if (!response.result.ok) {
             var detail = response.result.error || {};
-            set(function (prev) { return Object.assign({}, prev, { explainError: String(detail.message || detail.code || "unknown") }); });
+            set(function (prev) { return Object.assign({}, prev, { explainError: mutateError(detail, "unknown") }); });
           }
         }).catch(function (e) {
           set(function (prev) { return Object.assign({}, prev, { explainError: String(e && e.message || e) }); });
         });
-      }, [api]);
+      }, [api, t]);
       var load = react.useCallback(function (q, sort, page, append) {
         set(function (prev) { return Object.assign({}, prev, { loading: true, error: null }); });
         fetchPage(q, sort, page).then(function (out) {
@@ -353,7 +364,7 @@ window.__ModuleLoader__.load({
             var open = s.open && s.open.fullName === p.fullName;
             return h("div", { key: p.fullName, className: "__mp_item" },
               h(PluginCard, { plugin: p, t: t, onOpen: function () { openDetail(p); } }),
-              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError"), explainState: installState && installState.status === "ready" ? installState.value.aiExplainResult : null, onExplain: onExplain }) : null
+              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError"), explainState: installState && installState.status === "ready" ? installState.value.aiExplainResult : null, explainError: s.explainError, onExplain: onExplain }) : null
             );
           })
         ),

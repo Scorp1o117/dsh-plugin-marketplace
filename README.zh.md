@@ -31,7 +31,17 @@ dsh plugin --profile web add dsh-plugin-marketplace
       name: 'dsh-plugin-marketplace'
 ```
 
+> **从 ≤ 0.2.2 升级？** 如果你之前是手动挂载的，切到 bundle 安装前**先删掉
+> `cordis.patch.yml` 里那一行**——bundle 层自己会插入条目，两行同 id 会让启动
+> 直接报 `duplicate loader entry id: plugin-marketplace`。两种方式二选一，别同时用。
+
 然后重启 `dsh web`（新客户端插件需要重启进程才会被扫描进浏览器清单），打开 **设置 → 插件市场**。
+
+**如果点安装按钮报 `settings namespace "plugin-marketplace" is not exposed to
+configuration clients`**：宿主 apiproxy 只放行硬编码白名单里的命名空间，本插件会在
+首次启动时自动把命名空间补进白名单——但当前进程要到**重启 `dsh web`** 之后才会放行。
+重启一次即可；若重启后仍报错，看启动日志里的 `[settings-expose]` 提示（它会指出要手动
+编辑的文件：`dsh-host-apiproxy/lib/index.js` 的 `WEB_SETTINGS_NAMESPACES`）。
 
 ## 实现方式
 
