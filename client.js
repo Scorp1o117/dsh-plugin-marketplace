@@ -77,7 +77,10 @@ window.__ModuleLoader__.load({
       installOk: "已安装：{msg}",
       installErr: "安装失败：{msg}",
       installIdle: "",
-      installingHint: "正在后台执行 dsh plugin add，请稍候…"
+      installingHint: "正在后台执行 dsh plugin add，请稍候…",
+      aiExplain: "🤖 AI 解释",
+      aiExplaining: "AI 解释中，请稍候…",
+      aiExplainErr: "AI 解释失败：{msg}"
     };
     var en = {
       nav: "Plugin Marketplace",
@@ -103,7 +106,10 @@ window.__ModuleLoader__.load({
       installOk: "Installed: {msg}",
       installErr: "Install failed: {msg}",
       installIdle: "",
-      installingHint: "Running dsh plugin add in the background…"
+      installingHint: "Running dsh plugin add in the background…",
+      aiExplain: "🤖 AI Explain",
+      aiExplaining: "AI is explaining…",
+      aiExplainErr: "AI explain failed: {msg}"
     };
 
     // ── GitHub API ────────────────────────────────────────────────────────
@@ -179,6 +185,7 @@ window.__ModuleLoader__.load({
       var st = props.installState; // {status, message, pkg} from the settings scope
       var active = st && st.pkg === installName;
       var status = active ? st.status : "idle";
+      var explainState = props.explainState; // {status, text} from the settings scope
       var [confirming, setConfirming] = react.useState(false);
       var statusNode = null;
       if (status === "running") {
@@ -229,6 +236,19 @@ window.__ModuleLoader__.load({
             : props.readmeRateLimited ? props.ghError
             : props.readmeError ? props.t("readmeEmpty")
             : (props.readme || "")
+        ),
+        h("div", { className: "__mp_translateRow" },
+          h("button", { type: "button", className: "__mp_translateBtn",
+            style: { marginTop: "8px", padding: "4px 10px", fontSize: "12px", cursor: "pointer", background: "var(--dsw-alias-bg-hover, #21262d)", color: "var(--dsw-alias-label-primary, #e6edf3)", border: "1px solid var(--dsw-alias-border, #30363d)", borderRadius: "6px" },
+            disabled: explainState && explainState.status === "running",
+            onClick: function () { props.onExplain(p.fullName, p.desc, props.readme || ""); }
+          }, props.t("aiExplain")),
+          h("div", { id: "__mp_translateOut", style: { fontSize: "12px", lineHeight: "1.6", color: "var(--dsw-alias-label-secondary, #8b949e)", whiteSpace: "pre-wrap", wordBreak: "break-word", marginTop: "8px", borderTop: "1px solid var(--dsw-alias-border, #21262d)", paddingTop: "8px" } },
+            explainState && explainState.status === "running" ? props.t("aiExplaining")
+              : explainState && explainState.status === "error" ? props.t("aiExplainErr").replace("{msg}", explainState.text || "unknown")
+              : explainState && explainState.status === "ok" ? explainState.text
+              : ""
+          )
         )
       );
     }
@@ -260,6 +280,20 @@ window.__ModuleLoader__.load({
           }
         }).catch(function (e) {
           set(function (prev) { return Object.assign({}, prev, { installError: String(e && e.message || e) }); });
+        });
+      }, [api]);
+      // AI-explain request: the host answers over the same settings channel.
+      var onExplain = react.useCallback(function (repo, desc, readme) {
+        api.settings.mutate({
+          ns: "plugin-marketplace",
+          ops: [{ op: "set", path: ["aiExplain"], value: { repo: repo, desc: desc, readme: readme, ts: Date.now() } }]
+        }).then(function (response) {
+          if (!response.result.ok) {
+            var detail = response.result.error || {};
+            set(function (prev) { return Object.assign({}, prev, { explainError: String(detail.message || detail.code || "unknown") }); });
+          }
+        }).catch(function (e) {
+          set(function (prev) { return Object.assign({}, prev, { explainError: String(e && e.message || e) }); });
         });
       }, [api]);
       var load = react.useCallback(function (q, sort, page, append) {
@@ -319,7 +353,7 @@ window.__ModuleLoader__.load({
             var open = s.open && s.open.fullName === p.fullName;
             return h("div", { key: p.fullName, className: "__mp_item" },
               h(PluginCard, { plugin: p, t: t, onOpen: function () { openDetail(p); } }),
-              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError") }) : null
+              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError"), explainState: installState && installState.status === "ready" ? installState.value.aiExplainResult : null, onExplain: onExplain }) : null
             );
           })
         ),

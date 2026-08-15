@@ -11,6 +11,8 @@ from the settings page — no terminal needed.
 - **Search** the topic by keyword, **sort** by stars or last update
 - **Plugin cards** with description, stars, language, and update date
 - **Detail panel**: GitHub README summary, install command, repo/npm links
+- **AI explain**: one click asks the configured default model what a plugin
+  roughly does, answered in the UI — no need to read the README yourself
 - Powered by the public GitHub search API (CORS-enabled, no key needed;
   unauthenticated rate limit 60 req/h)
 - Zero client dependencies (React only), no build step — hand-written
@@ -18,7 +20,16 @@ from the settings page — no terminal needed.
 
 ## Install
 
-In `$DSH_HOME/profiles/web/cordis.patch.yml`:
+As a profile bundle (recommended):
+
+```
+dsh plugin --profile web add dsh-plugin-marketplace
+```
+
+or via the package's `dsh.bundle.patch` layer — add `dsh-plugin-marketplace`
+to `dsh.profile.bundles` in `$DSH_HOME/profiles/web/package.json`.
+
+Manual mount in `$DSH_HOME/profiles/web/cordis.patch.yml`:
 
 ```yaml
 - insert:
@@ -33,9 +44,9 @@ scanned into the browser roster) and open **Settings → Plugin Marketplace**.
 
 | Layer | File | Role |
 |---|---|---|
-| host shell | `index.js` | empty apply — makes the package a loader entry |
-| browser half | `client.js` | registers the `settings.section` "marketplace" tab; fetches GitHub search API; renders cards + detail |
-| manifest | `package.json` | `dsh.client: { platform: "web" }` + `exports["./client"]` — discovered by `dsh-client-modules` |
+| host shell | `index.js` | settings-backed install + AI-explain flows; `dsh.bundle.patch` makes the package a proper profile bundle |
+| browser half | `client.js` | registers the `settings.section` "marketplace" tab; fetches GitHub search API; renders cards + detail; "AI explain" button |
+| manifest | `package.json` | `dsh.bundle: { patch: "./cordis.patch.yml" }` + `dsh.client: { platform: "web" }` + `exports["./client"]` — discovered by `dsh-client-modules` |
 
 The browser half needs no `dsh.client.inject` packages: it only uses `react`
 (provided by the web runtime) and the `slots` / `locale` client services.

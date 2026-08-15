@@ -15,6 +15,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
 import z from "@deepseek-ai/schemastery";
+import { BlockAssembler, createUserMessage } from "@deepseek-ai/dsh-llm";
 import { installSettingsSection, settingsNamespace } from "@deepseek-ai/dsh-settings";
 import { ensureSettingsNamespaceExposed } from "./vendor/dsh-settings-expose.js";
 
@@ -36,6 +37,18 @@ const Config = z.object({
     message: z.string().default(""),
     ts: z.number().default(0),
   }),
+  /** AI-explain request (client writes repo/desc/readme, host answers). */
+  aiExplain: z.object({
+    repo: z.string().default(""),
+    desc: z.string().default(""),
+    readme: z.string().default(""),
+    ts: z.number().default(0),
+  }),
+  aiExplainResult: z.object({
+    status: z.string().default("idle"), // idle | running | ok | error
+    text: z.string().default(""),
+    ts: z.number().default(0),
+  }),
 });
 
 /** npm package-name shape (scope/name, no spaces, no path chars). */
@@ -44,6 +57,7 @@ const PKG_NAME = /^@?[a-z0-9][a-z0-9-._]*(?:\/[a-z0-9][a-z0-9-._]*)?$/;
 function apply(ctx, config) {
   let sourceGetter = null;
   let lastTs = 0;
+  let lastExplainTs = 0;
 
   // ── settings-backed configuration ─────────────────────────────────────────
   // The browser half edits this namespace; `onChange` fires on every write,
@@ -54,6 +68,7 @@ function apply(ctx, config) {
     },
     onChange: () => {
       void maybeRunInstall();
+      void maybeRunExplain();
     },
   });
 
@@ -155,6 +170,80 @@ function apply(ctx, config) {
     } catch (error) {
       ctx.logger.warn(`[plugin-marketplace] install flow failed: ${String(error)}`);
       await report("error", String(error instanceof Error ? error.message : error));
+    }
+  }
+
+  /** Write the AI-explain result report (and clear the consumed request). */
+  async function reportExplain(status, text) {
+    const settings = ctx.get("settings");
+    if (!settings) return;
+    const ts = Date.now();
+    await settings.update(NS, {
+      aiExplainResult: { status, text, ts },
+      aiExplain: { repo: "", desc: "", readme: "", ts: 0 },
+    }).catch((error) => {
+      ctx.logger.warn(`[plugin-marketplace] explain state write failed: ${String(error)}`);
+    });
+  }
+
+  /**
+   * Answer an aiExplain request with the deployment's default model: tell the
+   * user in plain Chinese what this plugin roughly does. Uses the same
+   * settings-backed message channel as the install flow.
+   */
+  async function maybeRunExplain() {
+    try {
+      const cfg = current();
+      const req = cfg?.aiExplain;
+      if (!req || !req.repo || req.ts === lastExplainTs || req.ts === 0) return;
+      lastExplainTs = req.ts;
+      const llm = ctx.get("llm");
+      if (!llm) {
+        await reportExplain("error", "LLM service unavailable; configure a model in Settings → Models.");
+        return;
+      }
+      // Route through the deployment's default model when one is configured.
+      let route = null;
+      try {
+        const defaults = ctx.get("agentDefaultModel")?.currentSelection?.();
+        if (defaults?.provider && defaults?.model) route = defaults;
+      } catch { /* no default model service; fall back to the adapter default */ }
+      const repo = String(req.repo);
+      const desc = String(req.desc || "").trim();
+      const readme = String(req.readme || "").trim().slice(0, 1500);
+      const prompt =
+        `插件仓库：${repo}\n` +
+        (desc ? `简介：${desc}\n` : "") +
+        (readme ? `README 摘要：\n${readme}\n` : "") +
+        `\n请用简体中文、3~5 句话直接告诉我这个插件大概是干嘛的（核心用途、解决什么问题、适合谁）。不要复述仓库名，不要罗列安装步骤。`;
+      await reportExplain("running", "");
+      ctx.logger.info(`[plugin-marketplace] explaining ${repo} (model=${route ? `${route.provider}/${route.model}` : "default"})…`);
+      const messages = [createUserMessage({
+        content: [{ type: "text", text: prompt }],
+        source: { kind: "plugin", plugin: "dsh-plugin-marketplace" },
+      })];
+      const options = {
+        messages,
+        maxTokens: 400,
+        purpose: "plugin-marketplace-explain",
+      };
+      if (route) {
+        options.provider = route.provider;
+        options.model = route.model;
+      }
+      const assembler = new BlockAssembler();
+      for await (const chunk of ctx.llm.stream(options)) assembler.push(chunk);
+      const blocks = assembler.blocks();
+      const text = blocks
+        .filter((block) => block.type === "text")
+        .map((block) => block.text)
+        .join(" ")
+        .trim();
+      if (!text) throw new Error("model produced no text");
+      await reportExplain("ok", text);
+    } catch (error) {
+      ctx.logger.warn(`[plugin-marketplace] explain flow failed: ${String(error)}`);
+      await reportExplain("error", String(error instanceof Error ? error.message : error));
     }
   }
 }
