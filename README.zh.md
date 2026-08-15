@@ -8,12 +8,22 @@
 - **搜索**：按关键词搜索主题下的插件，按 Star 或更新时间**排序**
 - **插件卡片**：名称、简介、Star 数、语言、更新时间一目了然
 - **详情面板**：GitHub README 摘要、安装命令、仓库 / npm 链接
+- **AI 解释**：一键调用已配置的默认模型，用中文直接告诉你这个插件大概是干嘛的，不用自己啃 README
 - 基于 GitHub 公开搜索 API（浏览器 CORS 直连，无需密钥；未认证限流 60 次/小时）
 - 零客户端依赖（只用 React），无构建步骤 —— 手写 ModuleLoader bundle
 
 ## 安装
 
-在 `$DSH_HOME/profiles/web/cordis.patch.yml` 里：
+作为 profile bundle 安装（推荐）：
+
+```
+dsh plugin --profile web add dsh-plugin-marketplace
+```
+
+或通过包的 `dsh.bundle.patch` 层：把 `dsh-plugin-marketplace` 加进
+`$DSH_HOME/profiles/web/package.json` 的 `dsh.profile.bundles`。
+
+手动挂载（`$DSH_HOME/profiles/web/cordis.patch.yml`）：
 
 ```yaml
 - insert:
@@ -27,9 +37,9 @@
 
 | 层 | 文件 | 作用 |
 |---|---|---|
-| 服务端壳 | `index.js` | 空 apply —— 让包成为 loader entry |
-| 浏览器端 | `client.js` | 注册 `settings.section` 的 "marketplace" 分区；调用 GitHub 搜索 API；渲染卡片 + 详情 |
-| 清单 | `package.json` | `dsh.client: { platform: "web" }` + `exports["./client"]` —— 被 `dsh-client-modules` 扫描发现 |
+| 服务端壳 | `index.js` | settings 通道的安装 + AI 解释流程；`dsh.bundle.patch` 让包成为标准 profile bundle |
+| 浏览器端 | `client.js` | 注册 `settings.section` 的 "marketplace" 分区；调用 GitHub 搜索 API；渲染卡片 + 详情；"AI 解释"按钮 |
+| 清单 | `package.json` | `dsh.bundle: { patch: "./cordis.patch.yml" }` + `dsh.client: { platform: "web" }` + `exports["./client"]` —— 被 `dsh-client-modules` 扫描发现 |
 
 浏览器端不需要任何 `dsh.client.inject` 依赖包：只用 `react`（web 运行时自带）和 `slots` / `locale` 客户端服务。
 
