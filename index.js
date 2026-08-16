@@ -109,21 +109,63 @@ function apply(ctx, config) {
     return process.argv[1];
   }
 
-  /** Append a mount row for `pkg` to cordis.patch.yml (idempotent). */
+  /** Read the profile manifest (its `dsh.profile.bundles` list), or null. */
+  function profileManifest(profile) {
+    try {
+      const dshHome = process.env.DSH_HOME || join(os.homedir(), ".dsh");
+      return JSON.parse(readFileSync(join(dshHome, "profiles", profile, "package.json"), "utf8"));
+    } catch {
+      return null;
+    }
+  }
+
+  /** Whether the installed package declares dsh.bundle.patch (auto-mounted via its bundle layer). */
+  function isBundlePackage(pkg, profile) {
+    try {
+      const dshHome = process.env.DSH_HOME || join(os.homedir(), ".dsh");
+      const manifest = JSON.parse(readFileSync(join(dshHome, "profiles", profile, "node_modules", pkg, "package.json"), "utf8"));
+      return typeof manifest?.dsh?.bundle?.patch === "string" && manifest.dsh.bundle.patch.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Append a mount row for `pkg` to cordis.patch.yml (idempotent).
+   * Bundle plugins (already in `dsh.profile.bundles`, or whose installed
+   * package declares `dsh.bundle.patch`) are mounted by their own bundle
+   * layer — adding a manual row would create a duplicate loader entry and
+   * abort boot, so they are skipped here.
+   */
   function ensureMounted(pkg, profile) {
     const dshHome = process.env.DSH_HOME || join(os.homedir(), ".dsh");
     const patchPath = join(dshHome, "profiles", profile, "cordis.patch.yml");
     if (!existsSync(patchPath)) return " (patch file not found; mount manually)";
+    const bundles = profileManifest(profile)?.dsh?.profile?.bundles ?? [];
+    if (bundles.includes(pkg)) return " (already mounted via dsh.profile.bundles)";
+    if (isBundlePackage(pkg, profile)) return " (bundle plugin: auto-mounted via its own dsh.bundle layer)";
     const id = pkg.replace(/^@[^/]+\//, "").replace(/[^a-z0-9-]/g, "-") || pkg;
     let src = readFileSync(patchPath, "utf8");
     if (src.includes(`name: '${pkg}'`) || src.includes(`name: "${pkg}"`)) return " (already mounted)";
-    // Append under the first `- insert:` list; match its indentation (4 spaces
-    // is the convention used by dsh profiles).
-    const insertAt = src.search(/^- insert:\s*$/m);
     const row = `\n    - id: ${id}\n      name: '${pkg}'`;
+    // A flow-style empty array (`[]`, optionally after comment lines) is a
+    // valid empty patch: replace it with the block-style insert list.
+    // Appending after `[]` would produce two top-level documents in one
+    // stream and crash boot with a YAML parse error.
+    const emptyArray = /^(\s*(?:#[^\n]*\n?)*)\[\s*\]\s*$/.exec(src);
+    if (emptyArray) {
+      writeFileSync(patchPath, `${emptyArray[1]}- insert:${row}\n`, "utf8");
+      return " (mounted in cordis.patch.yml)";
+    }
+    // Insert under the first `- insert:` list; match its indentation (4
+    // spaces is the convention used by dsh profiles).
+    const insertAt = src.search(/^- insert:\s*$/m);
     if (insertAt >= 0) {
       src = src.slice(0, insertAt + "- insert:".length) + row + src.slice(insertAt + "- insert:".length);
     } else {
+      // A non-empty flow-style array cannot be safely extended with string
+      // surgery — refuse rather than corrupt the file.
+      if (/^\s*\[/.test(src)) return " (patch file uses a flow-style array; mount manually)";
       src += `\n- insert:${row}\n`;
     }
     writeFileSync(patchPath, src, "utf8");

@@ -64,6 +64,7 @@ window.__ModuleLoader__.load({
       empty: "没有找到插件",
       install: "安装方式",
       installHint: "在 profile 目录执行 pnpm 安装，然后在 cordis.patch.yml 挂载：",
+      installHintBundle: "标准 bundle 插件：dsh plugin add 后由 bundle 层自动挂载，无需手动改 cordis.patch.yml：",
       readme: "README 摘要",
       readmeEmpty: "（该仓库没有 README）",
       openRepo: "打开 GitHub 仓库 ↗",
@@ -94,6 +95,7 @@ window.__ModuleLoader__.load({
       empty: "No plugins found",
       install: "Install",
       installHint: "Run pnpm in your profile dir, then mount in cordis.patch.yml:",
+      installHintBundle: "Standard bundle plugin: dsh plugin add auto-mounts it via its bundle layer — no manual cordis.patch.yml edit needed:",
       readme: "README summary",
       readmeEmpty: "(no README in this repo)",
       openRepo: "Open GitHub repo ↗",
@@ -163,6 +165,24 @@ window.__ModuleLoader__.load({
       for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       return new TextDecoder("utf-8").decode(bytes);
     }
+    // npm metadata (bundle detection for the install hint); CORS-enabled, cached.
+    var npmCache = new Map(); // pkg -> {isBundle} | null
+    async function fetchNpmInfo(pkg) {
+      if (npmCache.has(pkg)) return npmCache.get(pkg);
+      var promise = fetch("https://registry.npmjs.org/" + encodeURIComponent(pkg) + "/latest", {
+        headers: { Accept: "application/vnd.npm.install-v1+json" }
+      }).then(function (res) {
+        if (!res.ok) return null;
+        return res.json();
+      }).then(function (data) {
+        if (!data || !data.dsh) return { isBundle: false };
+        return { isBundle: typeof data.dsh.bundle === "object" && data.dsh.bundle !== null && typeof data.dsh.bundle.patch === "string" && data.dsh.bundle.patch.length > 0 };
+      }).catch(function () {
+        return null;
+      });
+      npmCache.set(pkg, promise);
+      return promise;
+    }
 
     // ── components ────────────────────────────────────────────────────────
     function PluginCard(props) {
@@ -224,11 +244,13 @@ window.__ModuleLoader__.load({
           h("a", { className: "__mp_link", href: "https://www.npmjs.com/search?q=" + encodeURIComponent(installName), target: "_blank", rel: "noreferrer" }, props.t("openNpm"))
         ),
         h("div", { className: "__mp_detailTitle" }, props.t("install")),
-        h("div", { className: "__mp_readme" }, props.t("installHint")),
+        h("div", { className: "__mp_readme" }, props.bundleInfo === true ? props.t("installHintBundle") : props.t("installHint")),
         h("code", { className: "__mp_code" },
           "dsh plugin --profile web add " + installName + "\n" +
-          "# then in $DSH_HOME/profiles/web/cordis.patch.yml:\n" +
-          "- insert:\n    - id: " + installName + "\n      name: '" + installName + "'"
+          (props.bundleInfo === true
+            ? "# standard bundle: auto-mounted via dsh.profile.bundles"
+            : "# then in $DSH_HOME/profiles/web/cordis.patch.yml:\n" +
+              "- insert:\n    - id: " + installName + "\n      name: '" + installName + "'")
         ),
         btn,
         statusNode,
@@ -260,7 +282,7 @@ window.__ModuleLoader__.load({
       var t = props.t;
       var scope = props.scope;
       var api = props.api;
-      var state = react.useState({ q: "", sort: "stars", page: 1, items: [], loading: false, error: null, total: 0, open: null, readme: null, readmeLoading: false, readmeError: false, readmeRateLimited: false });
+      var state = react.useState({ q: "", sort: "stars", page: 1, items: [], loading: false, error: null, total: 0, open: null, readme: null, readmeLoading: false, readmeError: false, readmeRateLimited: false, bundleInfo: null });
       var s = state[0], set = state[1];
       // install-state subscription (stable pattern: useState + subscribe, never
       // depend on getSnapshot() reference identity).
@@ -342,6 +364,14 @@ window.__ModuleLoader__.load({
             return Object.assign({}, prev, { readmeLoading: false, readmeError: !rateLimited, readmeRateLimited: rateLimited });
           });
         });
+        // npm metadata: does the target package declare dsh.bundle.patch?
+        // (determines whether the manual cordis.patch.yml row is needed)
+        fetchNpmInfo(plugin.fullName.split("/")[1]).then(function (info) {
+          set(function (prev) {
+            if (!prev.open || prev.open.fullName !== plugin.fullName) return prev;
+            return Object.assign({}, prev, { bundleInfo: info ? Boolean(info.isBundle) : null });
+          });
+        });
       }, [s.open]);
       var submit = function (e) {
         e.preventDefault();
@@ -364,7 +394,7 @@ window.__ModuleLoader__.load({
             var open = s.open && s.open.fullName === p.fullName;
             return h("div", { key: p.fullName, className: "__mp_item" },
               h(PluginCard, { plugin: p, t: t, onOpen: function () { openDetail(p); } }),
-              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError"), explainState: installState && installState.status === "ready" ? installState.value.aiExplainResult : null, explainError: s.explainError, onExplain: onExplain }) : null
+              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError"), explainState: installState && installState.status === "ready" ? installState.value.aiExplainResult : null, explainError: s.explainError, onExplain: onExplain, bundleInfo: s.bundleInfo }) : null
             );
           })
         ),
