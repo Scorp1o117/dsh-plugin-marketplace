@@ -135,15 +135,24 @@ function apply(ctx, config) {
    * Bundle plugins (already in `dsh.profile.bundles`, or whose installed
    * package declares `dsh.bundle.patch`) are mounted by their own bundle
    * layer — adding a manual row would create a duplicate loader entry and
-   * abort boot, so they are skipped here.
+   * abort boot. A STALE manual row left by an earlier non-bundle version is
+   * removed instead, so reinstalling a bundle plugin never breaks boot.
    */
   function ensureMounted(pkg, profile) {
     const dshHome = process.env.DSH_HOME || join(os.homedir(), ".dsh");
     const patchPath = join(dshHome, "profiles", profile, "cordis.patch.yml");
     if (!existsSync(patchPath)) return " (patch file not found; mount manually)";
     const bundles = profileManifest(profile)?.dsh?.profile?.bundles ?? [];
-    if (bundles.includes(pkg)) return " (already mounted via dsh.profile.bundles)";
-    if (isBundlePackage(pkg, profile)) return " (bundle plugin: auto-mounted via its own dsh.bundle layer)";
+    if (bundles.includes(pkg) || isBundlePackage(pkg, profile)) {
+      // Bundle layer auto-mounts; remove any stale manual row (pre-bundle).
+      const src = readFileSync(patchPath, "utf8");
+      const cleaned = src.replace(new RegExp(`[ \\t]*- id: [^\\n]*\\n[ \\t]*name: ['"]${pkg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]\\n?`, "g"), "");
+      if (cleaned !== src) {
+        writeFileSync(patchPath, cleaned, "utf8");
+        return " (removed stale manual mount row; bundle layer auto-mounts)";
+      }
+      return bundles.includes(pkg) ? " (already mounted via dsh.profile.bundles)" : " (bundle plugin: auto-mounted via its own dsh.bundle layer)";
+    }
     const id = pkg.replace(/^@[^/]+\//, "").replace(/[^a-z0-9-]/g, "-") || pkg;
     let src = readFileSync(patchPath, "utf8");
     if (src.includes(`name: '${pkg}'`) || src.includes(`name: "${pkg}"`)) return " (already mounted)";
