@@ -207,7 +207,10 @@ window.__ModuleLoader__.load({
       var st = props.installState; // {status, message, pkg} from the settings scope
       var active = st && st.pkg === installName;
       var status = active ? st.status : "idle";
-      var explainState = props.explainState; // {status, text} from the settings scope
+      var explainState = props.explainState; // {status, text, repo} from the settings scope
+      // The settings field is namespace-global and persists across sessions,
+      // so only show it when it belongs to the plugin currently open.
+      var explainMine = !!explainState && explainState.repo === p.fullName;
       var [confirming, setConfirming] = react.useState(false);
       var statusNode = null;
       if (status === "running") {
@@ -264,14 +267,14 @@ window.__ModuleLoader__.load({
         h("div", { className: "__mp_translateRow" },
           h("button", { type: "button", className: "__mp_translateBtn",
             style: { marginTop: "8px", padding: "4px 10px", fontSize: "12px", cursor: "pointer", background: "var(--dsw-alias-bg-hover, #21262d)", color: "var(--dsw-alias-label-primary, #e6edf3)", border: "1px solid var(--dsw-alias-border, #30363d)", borderRadius: "6px" },
-            disabled: explainState && explainState.status === "running",
+            disabled: explainMine && explainState.status === "running",
             onClick: function () { props.onExplain(p.fullName, p.desc, props.readme || ""); }
           }, props.t("aiExplain")),
           h("div", { id: "__mp_translateOut", style: { fontSize: "12px", lineHeight: "1.6", color: "var(--dsw-alias-label-secondary, #8b949e)", whiteSpace: "pre-wrap", wordBreak: "break-word", marginTop: "8px", borderTop: "1px solid var(--dsw-alias-border, #21262d)", paddingTop: "8px" } },
-            props.explainError ? h("span", { style: { color: "var(--dsw-alias-state-danger-text, #f85149)" } }, props.explainError)
-              : explainState && explainState.status === "running" ? props.t("aiExplaining")
-              : explainState && explainState.status === "error" ? props.t("aiExplainErr").replace("{msg}", explainState.text || "unknown")
-              : explainState && explainState.status === "ok" ? explainState.text
+            explainMine && props.explainError ? h("span", { style: { color: "var(--dsw-alias-state-danger-text, #f85149)" } }, props.explainError)
+              : explainMine && explainState.status === "running" ? props.t("aiExplaining")
+              : explainMine && explainState.status === "error" ? props.t("aiExplainErr").replace("{msg}", explainState.text || "unknown")
+              : explainMine && explainState.status === "ok" ? explainState.text
               : ""
           )
         )

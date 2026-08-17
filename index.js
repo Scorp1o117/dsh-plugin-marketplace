@@ -49,6 +49,8 @@ const Config = z.object({
   aiExplainResult: z.object({
     status: z.string().default("idle"), // idle | running | ok | error
     text: z.string().default(""),
+    /** repo this result belongs to ("owner/name"); client gates display on it. */
+    repo: z.string().default(""),
     ts: z.number().default(0),
   }),
 });
@@ -227,12 +229,12 @@ function apply(ctx, config) {
   }
 
   /** Write the AI-explain result report (and clear the consumed request). */
-  async function reportExplain(status, text) {
+  async function reportExplain(status, text, repo) {
     const settings = ctx.get("settings");
     if (!settings) return;
     const ts = Date.now();
     await settings.update(NS, {
-      aiExplainResult: { status, text, ts },
+      aiExplainResult: { status, text, repo: repo || "", ts },
       aiExplain: { repo: "", desc: "", readme: "", ts: 0 },
     }).catch((error) => {
       ctx.logger.warn(`[plugin-marketplace] explain state write failed: ${String(error)}`);
@@ -245,14 +247,16 @@ function apply(ctx, config) {
    * settings-backed message channel as the install flow.
    */
   async function maybeRunExplain() {
+    let repo = "";
     try {
       const cfg = current();
       const req = cfg?.aiExplain;
       if (!req || !req.repo || req.ts === lastExplainTs || req.ts === 0) return;
       lastExplainTs = req.ts;
+      repo = String(req.repo);
       const llm = ctx.llm;
       if (!llm) {
-        await reportExplain("error", "LLM service unavailable; configure a model in Settings → Models.");
+        await reportExplain("error", "LLM service unavailable; configure a model in Settings → Models.", repo);
         return;
       }
       // Route through the deployment's default model when one is configured.
@@ -261,7 +265,6 @@ function apply(ctx, config) {
         const defaults = ctx.agentDefaultModel?.currentSelection?.();
         if (defaults?.provider && defaults?.model) route = defaults;
       } catch { /* no default model service; fall back to the adapter default */ }
-      const repo = String(req.repo);
       const desc = String(req.desc || "").trim();
       const readme = String(req.readme || "").trim().slice(0, 1500);
       const prompt =
@@ -269,7 +272,7 @@ function apply(ctx, config) {
         (desc ? `简介：${desc}\n` : "") +
         (readme ? `README 摘要：\n${readme}\n` : "") +
         `\n请用简体中文、3~5 句话直接告诉我这个插件大概是干嘛的（核心用途、解决什么问题、适合谁）。不要复述仓库名，不要罗列安装步骤。`;
-      await reportExplain("running", "");
+      await reportExplain("running", "", repo);
       ctx.logger.info(`[plugin-marketplace] explaining ${repo} (model=${route ? `${route.provider}/${route.model}` : "default"})…`);
       const messages = [createUserMessage({
         content: [{ type: "text", text: prompt }],
@@ -293,10 +296,10 @@ function apply(ctx, config) {
         .join(" ")
         .trim();
       if (!text) throw new Error("model produced no text");
-      await reportExplain("ok", text);
+      await reportExplain("ok", text, repo);
     } catch (error) {
       ctx.logger.warn(`[plugin-marketplace] explain flow failed: ${String(error)}`);
-      await reportExplain("error", String(error instanceof Error ? error.message : error));
+      await reportExplain("error", String(error instanceof Error ? error.message : error), repo);
     }
   }
 }
