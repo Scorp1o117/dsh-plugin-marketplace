@@ -50,13 +50,10 @@ Manual mount in `$DSH_HOME/profiles/web/cordis.patch.yml`:
 Then restart `dsh web` (new client plugins require a process restart to be
 scanned into the browser roster) and open **Settings → Plugin Marketplace**.
 
-**If the install button answers `settings namespace "plugin-marketplace" is
-not exposed to configuration clients`**: the host apiproxy only lets a
-hard-coded allowlist through, and this plugin patches that allowlist on its
-first boot — the running process still answers `settings-not-exposed` until
-`dsh web` is restarted. Restart once; if the error persists, check the boot
-log for `[settings-expose]` lines (the fix line names the file to edit —
-`WEB_SETTINGS_NAMESPACES` in `dsh-host-apiproxy/lib/index.js`).
+DSH `0.1.1-rc.1` and newer expose every registered settings namespace, so the
+marketplace works without patching official files. Older hosts that return
+`settings-not-exposed` should be upgraded instead of modifying
+`dsh-host-apiproxy` in `node_modules`.
 
 ## How it works
 

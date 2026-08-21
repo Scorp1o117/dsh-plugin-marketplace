@@ -17,7 +17,6 @@ import os from "node:os";
 import z from "@deepseek-ai/schemastery";
 import { BlockAssembler, createUserMessage } from "@deepseek-ai/dsh-llm";
 import { installSettingsSection, settingsNamespace } from "@deepseek-ai/dsh-settings";
-import { ensureSettingsNamespaceExposed } from "./vendor/dsh-settings-expose.js";
 
 /** Cordis plugin name. */
 const name = "plugin-marketplace";
@@ -78,8 +77,6 @@ function apply(ctx, config) {
 
   // dsh-host-apiproxy hard-codes which namespaces the Web client may touch;
   // patch the allowlist idempotently so the client can write install requests.
-  ensureSettingsNamespaceExposed(ctx, "plugin-marketplace", ctx.logger);
-
   /** Resolved current config (settings layer over the entry). */
   function current() {
     return sourceGetter ? sourceGetter() : config;
@@ -214,7 +211,10 @@ function apply(ctx, config) {
       await report("running", `installing ${pkg}…`, pkg);
       const result = await runInstall(pkg, profile);
       if (result.code !== 0) {
-        const tail = (result.stderr || result.stdout || "").trim().split("\n").slice(-3).join(" ");
+        const output = (result.stderr || result.stdout || "").trim();
+        const tail = output.includes("ERR_PNPM_IGNORED_BUILDS")
+          ? "dependency build scripts were blocked by pnpm; the plugin author must make native build dependencies opt-in"
+          : output.split("\n").slice(-3).join(" ");
         ctx.logger.warn(`[plugin-marketplace] install failed (${result.code}): ${tail}`);
         await report("error", `install failed: ${tail || "unknown error"}`, pkg);
         return;

@@ -41,11 +41,9 @@ dsh plugin --profile web add dsh-plugin-marketplace
 
 然后重启 `dsh web`（新客户端插件需要重启进程才会被扫描进浏览器清单），打开 **设置 → 插件市场**。
 
-**如果点安装按钮报 `settings namespace "plugin-marketplace" is not exposed to
-configuration clients`**：宿主 apiproxy 只放行硬编码白名单里的命名空间，本插件会在
-首次启动时自动把命名空间补进白名单——但当前进程要到**重启 `dsh web`** 之后才会放行。
-重启一次即可；若重启后仍报错，看启动日志里的 `[settings-expose]` 提示（它会指出要手动
-编辑的文件：`dsh-host-apiproxy/lib/index.js` 的 `WEB_SETTINGS_NAMESPACES`）。
+DSH `0.1.1-rc.1` 起会公开全部已注册的 settings 命名空间，插件市场无需再修改官方文件。
+旧宿主若返回 `settings-not-exposed`，请升级 DSH，不要手动修改 `node_modules` 中的
+`dsh-host-apiproxy`。
 
 ## 实现方式
 

@@ -82,7 +82,7 @@ window.__ModuleLoader__.load({
       aiExplain: "🤖 AI 解释",
       aiExplaining: "AI 解释中，请稍候…",
       aiExplainErr: "AI 解释失败：{msg}",
-      notExposed: "设置通道未就绪：插件市场的命名空间还没被配置客户端放行。刚安装/升级过的话，请重启 dsh web；若重启后仍报错，请查看启动日志里的 [settings-expose] 提示（可能需要手动把 \"plugin-marketplace\" 加入 dsh-host-apiproxy 的 WEB_SETTINGS_NAMESPACES）。"
+      notExposed: "当前 DSH 版本没有公开插件市场的设置通道；请升级到 DSH 0.1.1-rc.1 或更高版本并重启 dsh web。"
     };
     var en = {
       nav: "Plugin Marketplace",
@@ -113,7 +113,7 @@ window.__ModuleLoader__.load({
       aiExplain: "🤖 AI Explain",
       aiExplaining: "AI is explaining…",
       aiExplainErr: "AI explain failed: {msg}",
-      notExposed: "Settings channel not ready: the plugin-marketplace namespace is not yet exposed to configuration clients. If you just installed/upgraded, restart dsh web; if it persists, check the [settings-expose] lines in the boot log (you may need to add \"plugin-marketplace\" to WEB_SETTINGS_NAMESPACES in dsh-host-apiproxy/lib/index.js manually)."
+      notExposed: "This DSH version does not expose the plugin-marketplace settings channel. Upgrade to DSH 0.1.1-rc.1 or newer and restart dsh web."
     };
 
     // ── GitHub API ────────────────────────────────────────────────────────
@@ -297,8 +297,8 @@ window.__ModuleLoader__.load({
         var un = typeof scope.subscribe === "function" ? scope.subscribe(sync) : null;
         return function () { alive = false; if (un) un(); if (scope.dispose) scope.dispose(); };
       }, [scope]);
-      // settings-not-exposed means the host allowlist gate refused the write:
-      // explain the restart/manual-fix path instead of showing the raw code.
+      // Older hosts can still return settings-not-exposed. Recommend upgrading
+      // instead of mutating the installed DSH package on disk.
       var mutateError = function (detail, fallback) {
         if (detail && detail.code === "settings-not-exposed") return t("notExposed");
         return String(detail && (detail.message || detail.code) || fallback);
