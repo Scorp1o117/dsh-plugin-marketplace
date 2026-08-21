@@ -41,9 +41,10 @@ dsh plugin --profile web add dsh-plugin-marketplace
 
 然后重启 `dsh web`（新客户端插件需要重启进程才会被扫描进浏览器清单），打开 **设置 → 插件市场**。
 
-DSH `0.1.1-rc.1` 起会公开全部已注册的 settings 命名空间，插件市场无需再修改官方文件。
-旧宿主若返回 `settings-not-exposed`，请升级 DSH，不要手动修改 `node_modules` 中的
-`dsh-host-apiproxy`。
+DSH `0.1.0-rc.7` 起会公开全部已注册的 settings 命名空间，插件市场无需再修改官方文件。
+因此从 `0.2.8` 起最低支持 DSH `0.1.0-rc.7`。仍使用 DSH `0.1.0-rc.6` 的用户
+请锁定 `dsh-plugin-marketplace@0.2.6`；这是最后一个包含旧 settings 白名单兼容
+补丁的版本。
 
 ## 实现方式
 

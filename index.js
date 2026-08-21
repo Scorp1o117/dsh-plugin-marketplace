@@ -75,8 +75,8 @@ function apply(ctx, config) {
     },
   });
 
-  // dsh-host-apiproxy hard-codes which namespaces the Web client may touch;
-  // patch the allowlist idempotently so the client can write install requests.
+  // DSH 0.1.0-rc.7+ exposes registered settings namespaces natively, allowing
+  // the browser client to write install requests without modifying host files.
   /** Resolved current config (settings layer over the entry). */
   function current() {
     return sourceGetter ? sourceGetter() : config;

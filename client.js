@@ -82,7 +82,7 @@ window.__ModuleLoader__.load({
       aiExplain: "🤖 AI 解释",
       aiExplaining: "AI 解释中，请稍候…",
       aiExplainErr: "AI 解释失败：{msg}",
-      notExposed: "当前 DSH 版本没有公开插件市场的设置通道；请升级到 DSH 0.1.1-rc.1 或更高版本并重启 dsh web。"
+      notExposed: "当前 DSH 版本没有公开插件市场的设置通道；请升级到 DSH 0.1.0-rc.7 或更高版本并重启 dsh web。"
     };
     var en = {
       nav: "Plugin Marketplace",
@@ -113,7 +113,7 @@ window.__ModuleLoader__.load({
       aiExplain: "🤖 AI Explain",
       aiExplaining: "AI is explaining…",
       aiExplainErr: "AI explain failed: {msg}",
-      notExposed: "This DSH version does not expose the plugin-marketplace settings channel. Upgrade to DSH 0.1.1-rc.1 or newer and restart dsh web."
+      notExposed: "This DSH version does not expose the plugin-marketplace settings channel. Upgrade to DSH 0.1.0-rc.7 or newer and restart dsh web."
     };
 
     // ── GitHub API ────────────────────────────────────────────────────────

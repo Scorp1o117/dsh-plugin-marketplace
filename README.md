@@ -50,10 +50,11 @@ Manual mount in `$DSH_HOME/profiles/web/cordis.patch.yml`:
 Then restart `dsh web` (new client plugins require a process restart to be
 scanned into the browser roster) and open **Settings → Plugin Marketplace**.
 
-DSH `0.1.1-rc.1` and newer expose every registered settings namespace, so the
-marketplace works without patching official files. Older hosts that return
-`settings-not-exposed` should be upgraded instead of modifying
-`dsh-host-apiproxy` in `node_modules`.
+DSH `0.1.0-rc.7` and newer expose every registered settings namespace, so the
+marketplace works without patching official files. Version 0.2.8 and newer
+therefore require DSH `0.1.0-rc.7` or newer. DSH `0.1.0-rc.6` users must pin
+`dsh-plugin-marketplace@0.2.6`, the last release carrying the legacy
+settings-allowlist compatibility patch.
 
 ## How it works
 
