@@ -16,14 +16,13 @@ import { join } from "node:path";
 import os from "node:os";
 import z from "@deepseek-ai/schemastery";
 import { BlockAssembler, createUserMessage } from "@deepseek-ai/dsh-llm";
-import { installSettingsSection, settingsNamespace } from "@deepseek-ai/dsh-settings";
 
 /** Cordis plugin name. */
 const name = "plugin-marketplace";
 /** Services this plugin needs injected from the host tree (ctx.get requires inject). */
 const inject = ["llm", "agentDefaultModel"];
 /** Settings namespace owned by this plugin (Web UI settings section + install channel). */
-const NS = settingsNamespace("plugin-marketplace");
+const NS = "plugin-marketplace";
 
 /** Runtime schema: the install request + the install state report. */
 const Config = z.object({
@@ -63,16 +62,27 @@ function apply(ctx, config) {
   let lastExplainTs = 0;
 
   // ── settings-backed configuration ─────────────────────────────────────────
-  // The browser half edits this namespace; `onChange` fires on every write,
-  // which is what turns an `install` request into a real install.
-  installSettingsSection(ctx, NS, Config, config, {
-    setSource: (getter) => {
-      sourceGetter = getter;
-    },
-    onChange: () => {
+  // The browser half edits this namespace; every write fires the onChange
+  // handler below, which is what turns an `install` request into a real
+  // install.
+  // Compat shim: dsh-settings 0.1.2-rc.1 removed the module-level
+  // `installSettingsSection` export (the provider now lives at ctx.settings).
+  // Inline the same logic via ctx.inject(["settings"]) — works on both
+  // 0.1.1 (module export wrapper) and 0.1.2 (ctx.settings) hosts.
+  ctx.inject(["settings"], (sctx) => {
+    const scope = sctx.settings.register(NS, Config, { base: config });
+    sourceGetter = () => scope.get();
+    sctx.effect(() => () => {
+      sourceGetter = null;
+    });
+    // Mirror the old installSettingsSection contract: fire once at attach so a
+    // request persisted across restarts is consumed, then on every write.
+    void maybeRunInstall();
+    void maybeRunExplain();
+    scope.watch(() => {
       void maybeRunInstall();
       void maybeRunExplain();
-    },
+    });
   });
 
   // DSH 0.1.0-rc.7+ exposes registered settings namespaces natively, allowing
