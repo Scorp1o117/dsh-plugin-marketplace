@@ -82,7 +82,7 @@ window.__ModuleLoader__.load({
       aiExplain: "🤖 AI 解释",
       aiExplaining: "AI 解释中，请稍候…",
       aiExplainErr: "AI 解释失败：{msg}",
-      notExposed: "当前 DSH 版本没有公开插件市场的设置通道；请升级到 DSH 0.1.0-rc.7 或更高版本并重启 dsh web。"
+      notExposed: "无法写入插件市场的设置通道：DSH 版本过旧（需 0.1.0-rc.7+）、宿主半端未挂载，或当前页面不是本机回环访问；请通过 127.0.0.1 打开 dsh web 后重试。"
     };
     var en = {
       nav: "Plugin Marketplace",
@@ -113,7 +113,7 @@ window.__ModuleLoader__.load({
       aiExplain: "🤖 AI Explain",
       aiExplaining: "AI is explaining…",
       aiExplainErr: "AI explain failed: {msg}",
-      notExposed: "This DSH version does not expose the plugin-marketplace settings channel. Upgrade to DSH 0.1.0-rc.7 or newer and restart dsh web."
+      notExposed: "The plugin-marketplace settings channel is not writable here: the DSH version is too old (0.1.0-rc.7+ required), the host half is not mounted, or this page is not a loopback connection. Open dsh web via 127.0.0.1 and try again."
     };
 
     // ── GitHub API ────────────────────────────────────────────────────────
@@ -182,6 +182,38 @@ window.__ModuleLoader__.load({
       });
       npmCache.set(pkg, promise);
       return promise;
+    }
+
+    // ── settings write channel ────────────────────────────────────────────
+    /**
+     * Write one namespace field through whichever settings channel this host
+     * exposes. dsh 0.1.2-rc.1 dropped `connection.api` (the old raw settings
+     * RPC); there the bound scope's own `mutate` (the remote.settings RPC) is
+     * the only write path. Older hosts (0.1.0-rc.7 / 0.1.1.x) have no public
+     * scope mutate but keep `connection.api`, whose structured error responses
+     * the UI can show verbatim. Always resolves `{ok, error?}` — refused or
+     * failed writes surface as a result, never as a rejection.
+     */
+    function writeField(scope, api, field, value) {
+      if (scope && typeof scope.mutate === "function") {
+        return scope.mutate([{ op: "set", path: [field], value: value }]).then(function () {
+          // A refused write leaves the namespace view absent (the scope folds
+          // the outcome into its snapshot before the promise settles).
+          var snap = scope.getSnapshot();
+          if (!snap || snap.status !== "ready") return { ok: false, error: { code: "settings-not-exposed" } };
+          return { ok: true };
+        }, function (e) {
+          return { ok: false, error: { message: String(e && e.message || e) } };
+        });
+      }
+      return api.settings.mutate({
+        ns: "plugin-marketplace",
+        ops: [{ op: "set", path: [field], value: value }]
+      }).then(function (response) {
+        return (response && response.result) ? response.result : { ok: false, error: { message: "malformed settings response" } };
+      }, function (e) {
+        return { ok: false, error: { message: String(e && e.message || e) } };
+      });
     }
 
     // ── components ────────────────────────────────────────────────────────
@@ -305,33 +337,21 @@ window.__ModuleLoader__.load({
       };
       var onInstall = react.useCallback(function (pkg) {
         set(function (prev) { return Object.assign({}, prev, { installError: null }); });
-        api.settings.mutate({
-          ns: "plugin-marketplace",
-          ops: [{ op: "set", path: ["install"], value: { pkg: pkg, ts: Date.now() } }]
-        }).then(function (response) {
-          if (!response.result.ok) {
-            var detail = response.result.error || {};
-            set(function (prev) { return Object.assign({}, prev, { installError: mutateError(detail, "unknown") }); });
+        writeField(scope, api, "install", { pkg: pkg, ts: Date.now() }).then(function (result) {
+          if (!result.ok) {
+            set(function (prev) { return Object.assign({}, prev, { installError: mutateError(result.error, "unknown") }); });
           }
-        }).catch(function (e) {
-          set(function (prev) { return Object.assign({}, prev, { installError: String(e && e.message || e) }); });
         });
-      }, [api, t]);
+      }, [scope, api, t]);
       // AI-explain request: the host answers over the same settings channel.
       var onExplain = react.useCallback(function (repo, desc, readme) {
         set(function (prev) { return Object.assign({}, prev, { explainError: null }); });
-        api.settings.mutate({
-          ns: "plugin-marketplace",
-          ops: [{ op: "set", path: ["aiExplain"], value: { repo: repo, desc: desc, readme: readme, ts: Date.now() } }]
-        }).then(function (response) {
-          if (!response.result.ok) {
-            var detail = response.result.error || {};
-            set(function (prev) { return Object.assign({}, prev, { explainError: mutateError(detail, "unknown") }); });
+        writeField(scope, api, "aiExplain", { repo: repo, desc: desc, readme: readme, ts: Date.now() }).then(function (result) {
+          if (!result.ok) {
+            set(function (prev) { return Object.assign({}, prev, { explainError: mutateError(result.error, "unknown") }); });
           }
-        }).catch(function (e) {
-          set(function (prev) { return Object.assign({}, prev, { explainError: String(e && e.message || e) }); });
         });
-      }, [api, t]);
+      }, [scope, api, t]);
       var load = react.useCallback(function (q, sort, page, append) {
         set(function (prev) { return Object.assign({}, prev, { loading: true, error: null }); });
         fetchPage(q, sort, page).then(function (out) {
@@ -414,7 +434,9 @@ window.__ModuleLoader__.load({
       var t = ctx.locale.bind(NS);
       ctx.effect(function () { return ctx.locale.register(NS, { zh: zh, en: en }); }, "dsh-plugin-marketplace: dictionaries");
       var scope = ctx.settingsScope.bind({ namespace: "plugin-marketplace" });
-      var api = ctx.connection.api;
+      // dsh 0.1.2-rc.1 dropped connection.api; only older hosts still carry
+      // the raw settings face there. writeField picks whichever exists.
+      var api = (ctx.connection && ctx.connection.api) ? ctx.connection.api : null;
       ctx.slots.inject("settings.section", function () {
         return ctx.slots.register({
           name: "settings.section",

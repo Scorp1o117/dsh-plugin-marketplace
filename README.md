@@ -56,6 +56,13 @@ therefore require DSH `0.1.0-rc.7` or newer. DSH `0.1.0-rc.6` users must pin
 `dsh-plugin-marketplace@0.2.6`, the last release carrying the legacy
 settings-allowlist compatibility patch.
 
+DSH `0.1.2-rc.1` removed the client-side `connection.api` (the legacy settings
+RPC face); version 0.3.1 therefore writes through the bound `settingsScope`'s
+own `mutate` (hosts older than `0.1.2-rc.1` still use the legacy channel).
+Note: when dsh web is opened from a non-loopback origin (a LAN IP, say), DSH
+keeps settings writes process-local, so install / AI-explain requests never
+reach the host.
+
 ## How it works
 
 | Layer | File | Role |

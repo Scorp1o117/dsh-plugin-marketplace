@@ -46,6 +46,11 @@ DSH `0.1.0-rc.7` 起会公开全部已注册的 settings 命名空间，插件�
 请锁定 `dsh-plugin-marketplace@0.2.6`；这是最后一个包含旧 settings 白名单兼容
 补丁的版本。
 
+DSH `0.1.2-rc.1` 移除了客户端的 `connection.api`（旧 settings RPC 入口），
+`0.3.1` 起改用 `settingsScope` 自带的 `mutate` 写入（`0.1.2-rc.1` 之前的主机仍走
+旧通道）。注意：非本机回环（如局域网 IP）访问 dsh web 时，DSH 的设置写入是
+进程本地的，安装 / AI 解释请求不会到达宿主。
+
 ## 实现方式
 
 | 层 | 文件 | 作用 |
