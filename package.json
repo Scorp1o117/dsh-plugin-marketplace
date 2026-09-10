@@ -1,6 +1,6 @@
 {
     "name": "dsh-plugin-marketplace",
-    "version": "0.3.2",
+    "version": "0.3.3",
     "description": "DeepSeek Harness Web UI 内置插件市场：在设置页直接浏览 github.com/topics/dsh-plugin，支持搜索、按 Star 排序、查看安装方式。",
     "type": "module",
     "main": "index.js",
@@ -16,6 +16,9 @@
         "client": {
             "platform": "web"
         }
+    },
+    "scripts": {
+        "test": "node --test tests/settings-write-verify.test.mjs"
     },
     "files": [
         "index.js",

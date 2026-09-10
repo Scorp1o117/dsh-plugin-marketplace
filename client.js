@@ -197,10 +197,18 @@ window.__ModuleLoader__.load({
     function writeField(scope, api, field, value) {
       if (scope && typeof scope.mutate === "function") {
         return scope.mutate([{ op: "set", path: [field], value: value }]).then(function () {
-          // A refused write leaves the namespace view absent (the scope folds
-          // the outcome into its snapshot before the promise settles).
+          // A settled write is not an applied write: one the Host refused
+          // (settings/conflict) still resolves. Compare the section itself —
+          // checking only `status === "ready"` passes after a refusal, because
+          // the namespace stays registered and the recovery read re-renders it
+          // as ready.
           var snap = scope.getSnapshot();
-          if (!snap || snap.status !== "ready") return { ok: false, error: { code: "settings-not-exposed" } };
+          if (!snap || snap.status !== "ready" || snap.value === void 0) {
+            return { ok: false, error: { code: "settings-not-exposed" } };
+          }
+          if (JSON.stringify(snap.value[field]) !== JSON.stringify(value)) {
+            return { ok: false, error: { code: "settings-not-applied" } };
+          }
           return { ok: true };
         }, function (e) {
           return { ok: false, error: { message: String(e && e.message || e) } };

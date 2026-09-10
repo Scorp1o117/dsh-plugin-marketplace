@@ -61,6 +61,16 @@ DSH `0.1.2-rc.1` 移除了客户端的 `connection.api`（旧 settings RPC 入�
 
 浏览器端不需要任何 `dsh.client.inject` 依赖包：只用 `react`（web 运行时自带）和 `slots` / `locale` 客户端服务。
 
+## v0.3.3：写入改为校验而非假定
+
+`writeField` 在走 settings scope 时只检查了 `snapshot.status === "ready"` 就返回成功。
+但 scope 的契约是「完成写入与恢复读取后结算」，**被宿主以 `settings/conflict` 拒绝的
+写入同样会 resolve**——而拒绝之后命名空间依然注册着，恢复读取也会把它重新渲染成
+`ready`，所以这个检查恒真，被拒的写入会被报成成功。
+
+现在改为比对 section 自身的值（`settings-not-applied`），调用方拿到的 `{ok:false}` 才
+真的代表写入没生效。
+
 ## 备注
 
 - GitHub 搜索 API 最多返回 1000 条；该主题目前有 280+ 仓库，翻页可以覆盖全部。
