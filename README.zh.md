@@ -16,6 +16,13 @@
 - 基于 GitHub 公开搜索 API（浏览器 CORS 直连，无需密钥；未认证限流 60 次/小时）
 - 零客户端依赖（只用 React），无构建步骤 —— 手写 ModuleLoader bundle
 
+## 兼容性（v0.3.4）
+
+已在 DSH `0.1.5-rc.3`（`next`）的一次性 Web Profile 中验证；`0.1.5-rc.2`
+仍是 `latest`。rc.3 宿主目前引用尚未发布的
+`dsh-client-ui-sidebar-documentpreview@0.1.5-rc.3`，烟测仅将这一无关的 UI
+包临时回退为 rc.2；rc.3 原样安装仍受上游阻塞。alpha 版本继续标记 `unknown`。
+
 ## 安装
 
 作为 profile bundle 安装（推荐）：
