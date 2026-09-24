@@ -22,13 +22,12 @@ from the settings page — no terminal needed.
 - Zero client dependencies (React only), no build step — hand-written
   ModuleLoader bundle
 
-## Compatibility (v0.3.4)
+## Compatibility (v0.3.5)
 
-Verified in a DSH `0.1.5-rc.3` (`next`) disposable Web profile; DSH
-`0.1.5-rc.2` remains `latest`. The rc.3 host currently references an
-unpublished `dsh-client-ui-sidebar-documentpreview@0.1.5-rc.3`, so the smoke
-profile temporarily used that unrelated UI package at rc.2. A clean rc.3
-installation is blocked upstream. Alpha releases remain `unknown`.
+Targets DSH `0.1.7-rc.1` (`next`); npm `latest` is `0.1.5-rc.3`.
+The host now stores live plugin settings in the Profile patch and the browser
+uses `configForms`. This version was checked in a disposable Web profile.
+Older hosts require an older plugin release; alpha releases remain `unknown`.
 
 ## Install
 
@@ -58,15 +57,8 @@ Manual mount in `$DSH_HOME/profiles/web/cordis.patch.yml`:
 Then restart `dsh web` (new client plugins require a process restart to be
 scanned into the browser roster) and open **Settings → Plugin Marketplace**.
 
-DSH `0.1.0-rc.7` and newer expose every registered settings namespace, so the
-marketplace works without patching official files. Version 0.2.8 and newer
-therefore require DSH `0.1.0-rc.7` or newer. DSH `0.1.0-rc.6` users must pin
-`dsh-plugin-marketplace@0.2.6`, the last release carrying the legacy
-settings-allowlist compatibility patch.
-
-DSH `0.1.2-rc.1` removed the client-side `connection.api` (the legacy settings
-RPC face); version 0.3.1 therefore writes through the bound `settingsScope`'s
-own `mutate` (hosts older than `0.1.2-rc.1` still use the legacy channel).
+Version 0.3.5 uses DSH's `configForms` client service and Profile patch
+settings. Use an older plugin release with older DSH hosts.
 Note: when dsh web is opened from a non-loopback origin (a LAN IP, say), DSH
 keeps settings writes process-local, so install / AI-explain requests never
 reach the host.

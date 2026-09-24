@@ -35,6 +35,7 @@ const Config = z.object({
   installState: z.object({
     status: z.string().default("idle"), // idle | running | ok | error
     message: z.string().default(""),
+    pkg: z.string().default(""),
     ts: z.number().default(0),
   }),
   /** AI-explain request (client writes repo/desc/readme, host answers). */
@@ -51,13 +52,13 @@ const Config = z.object({
     repo: z.string().default(""),
     ts: z.number().default(0),
   }),
-});
+}).volatile();
 
 /** npm package-name shape (scope/name, no spaces, no path chars). */
 const PKG_NAME = /^@?[a-z0-9][a-z0-9-._]*(?:\/[a-z0-9][a-z0-9-._]*)?$/;
 
 function apply(ctx, config) {
-  let sourceGetter = null;
+  const sourceGetter = () => typeof config.get === "function" ? config.get() : config;
   let lastTs = 0;
   let lastExplainTs = 0;
 
@@ -69,27 +70,23 @@ function apply(ctx, config) {
   // `installSettingsSection` export (the provider now lives at ctx.settings).
   // Inline the same logic via ctx.inject(["settings"]) — works on both
   // 0.1.1 (module export wrapper) and 0.1.2 (ctx.settings) hosts.
-  ctx.inject(["settings"], (sctx) => {
-    const scope = sctx.settings.register(NS, Config, { base: config });
-    sourceGetter = () => scope.get();
-    sctx.effect(() => () => {
-      sourceGetter = null;
-    });
-    // Mirror the old installSettingsSection contract: fire once at attach so a
-    // request persisted across restarts is consumed, then on every write.
+  // DSH 0.1.7 stores live plugin fields in the profile patch. Config is a
+  // volatile proxy, and the settings service emits after a committed edit.
+  ctx.on("settings/document-updated", (id) => {
+    if (id !== NS) return;
     void maybeRunInstall();
     void maybeRunExplain();
-    scope.watch(() => {
-      void maybeRunInstall();
-      void maybeRunExplain();
-    });
+  });
+  queueMicrotask(() => {
+    void maybeRunInstall();
+    void maybeRunExplain();
   });
 
   // DSH 0.1.0-rc.7+ exposes registered settings namespaces natively, allowing
   // the browser client to write install requests without modifying host files.
   /** Resolved current config (settings layer over the entry). */
   function current() {
-    return sourceGetter ? sourceGetter() : config;
+    return sourceGetter();
   }
 
   /** Write the install-state report (and clear the consumed request). */

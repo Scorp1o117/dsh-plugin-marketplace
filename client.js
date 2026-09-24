@@ -52,7 +52,7 @@ window.__ModuleLoader__.load({
 
     // ── locale ────────────────────────────────────────────────────────────
     var NS = "marketplace";
-    var inject = ["slots", "locale", "settingsScope", "connection"];
+    var inject = ["slots", "locale", "configForms", "connection"];
     var zh = {
       nav: "插件市场",
       search: "搜索插件（关键词或留空浏览全部）…",
@@ -441,7 +441,7 @@ window.__ModuleLoader__.load({
     function apply(ctx) {
       var t = ctx.locale.bind(NS);
       ctx.effect(function () { return ctx.locale.register(NS, { zh: zh, en: en }); }, "dsh-plugin-marketplace: dictionaries");
-      var scope = ctx.settingsScope.bind({ namespace: "plugin-marketplace" });
+      var scope = ctx.configForms.get("plugin-marketplace");
       // dsh 0.1.2-rc.1 dropped connection.api; only older hosts still carry
       // the raw settings face there. writeField picks whichever exists.
       var api = (ctx.connection && ctx.connection.api) ? ctx.connection.api : null;
