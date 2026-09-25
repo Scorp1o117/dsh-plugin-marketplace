@@ -16,9 +16,9 @@
 - 基于 GitHub 公开搜索 API（浏览器 CORS 直连，无需密钥；未认证限流 60 次/小时）
 - 零客户端依赖（只用 React），无构建步骤 —— 手写 ModuleLoader bundle
 
-## 兼容性（v0.3.5）
+## 兼容性（v0.3.6）
 
-适配 DSH `0.1.7-rc.1`（npm `next`）；npm `latest` 是 `0.1.5-rc.3`。
+已验证 DSH `0.1.7-rc.1` 与 `0.1.7-rc.2`（npm `next`）；npm `latest` 是 `0.1.5-rc.3`。
 新版使用 Profile patch 配置与客户端 `configForms`，已在一次性 Web Profile 验证。
 旧宿主请使用插件旧版；alpha 版本继续标记 `unknown`。
 
