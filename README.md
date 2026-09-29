@@ -22,12 +22,20 @@ from the settings page — no terminal needed.
 - Zero client dependencies (React only), no build step — hand-written
   ModuleLoader bundle
 
-## Compatibility (v0.3.6)
+## Compatibility (v0.3.7)
 
-Tested with DSH `0.1.7-rc.1` and `0.1.7-rc.2` (`next`); npm `latest` is `0.1.5-rc.3`.
-The host now stores live plugin settings in the Profile patch and the browser
-uses `configForms`. This version was checked in a disposable Web profile.
-Older hosts require an older plugin release; alpha releases remain `unknown`.
+Verified with DSH `0.1.7-rc.2` (Web) and `0.2.0-rc.2` (Desktop runtime) in isolated profiles. The Desktop app uses its own `desktop` profile. Other DSH prereleases remain unverified.
+
+## Desktop install
+
+Use the Desktop-installed `dsh` command (Application → Manage dsh Command), or the app’s Plugins page. Then install into the Desktop profile:
+
+```powershell
+dsh plugin --profile desktop add dsh-plugin-marketplace@0.3.7
+```
+
+Restart the Desktop app to load the client bundle. Desktop keeps its profile under `$DSH_HOME/profiles/desktop`.
+
 
 ## Install
 
@@ -57,7 +65,7 @@ Manual mount in `$DSH_HOME/profiles/web/cordis.patch.yml`:
 Then restart `dsh web` (new client plugins require a process restart to be
 scanned into the browser roster) and open **Settings → Plugin Marketplace**.
 
-Version 0.3.6 uses DSH's `configForms` client service and Profile patch
+Version 0.3.7 uses DSH's `configForms` client service and Profile patch
 settings. Use an older plugin release with older DSH hosts.
 Note: when dsh web is opened from a non-loopback origin (a LAN IP, say), DSH
 keeps settings writes process-local, so install / AI-explain requests never

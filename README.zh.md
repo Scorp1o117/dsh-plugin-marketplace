@@ -16,11 +16,20 @@
 - 基于 GitHub 公开搜索 API（浏览器 CORS 直连，无需密钥；未认证限流 60 次/小时）
 - 零客户端依赖（只用 React），无构建步骤 —— 手写 ModuleLoader bundle
 
-## 兼容性（v0.3.6）
+## 兼容性（v0.3.7）
 
-已验证 DSH `0.1.7-rc.1` 与 `0.1.7-rc.2`（npm `next`）；npm `latest` 是 `0.1.5-rc.3`。
-新版使用 Profile patch 配置与客户端 `configForms`，已在一次性 Web Profile 验证。
-旧宿主请使用插件旧版；alpha 版本继续标记 `unknown`。
+已在 DSH `0.1.7-rc.2`（Web）与 `0.2.0-rc.2`（桌面端运行时）的一次性 Profile 验证。桌面端使用独立的 `desktop` Profile；其他预发布版本暂未验证。
+
+## 桌面端安装
+
+在桌面端的“插件”页面安装，或使用桌面端“应用 → 管理 dsh 命令”注册的命令：
+
+```powershell
+dsh plugin --profile desktop add dsh-plugin-marketplace@0.3.7
+```
+
+重启桌面端以加载客户端插件。配置位于 `$DSH_HOME/profiles/desktop`。
+
 
 ## 安装
 
