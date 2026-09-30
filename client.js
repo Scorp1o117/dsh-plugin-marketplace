@@ -445,12 +445,10 @@ window.__ModuleLoader__.load({
       // dsh 0.1.2-rc.1 dropped connection.api; only older hosts still carry
       // the raw settings face there. writeField picks whichever exists.
       var api = (ctx.connection && ctx.connection.api) ? ctx.connection.api : null;
-      ctx.slots.inject("settings.section", function () {
+      ctx.slots.inject("plugins.bundle.config", function () {
         return ctx.slots.register({
-          name: "settings.section",
-          id: "marketplace",
-          order: 20,
-          label: function () { return t("nav"); },
+          name: "plugins.bundle.config",
+          key: "dsh-plugin-marketplace",
           locale: NS
         }, function (props) {
           return h(MarketplaceSection, Object.assign({}, props, { scope: scope, api: api }));

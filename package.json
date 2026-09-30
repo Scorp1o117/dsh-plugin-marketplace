@@ -1,6 +1,6 @@
 {
     "name": "dsh-plugin-marketplace",
-    "version": "0.3.7",
+    "version": "0.4.0",
     "description": "DeepSeek Harness Web UI 内置插件市场：在设置页直接浏览 github.com/topics/dsh-plugin，支持搜索、按 Star 排序、查看安装方式。",
     "type": "module",
     "main": "index.js",
@@ -17,7 +17,7 @@
             "platform": "web"
         },
         "compatibility": {
-            "dsh": ">=0.1.7-rc.1 <0.2.0 || 0.2.0-rc.2",
+            "dsh": ">=0.2.0-rc.2 <0.3.0",
             "dshReleases": {
                 "0.1.5-rc.2": "incompatible",
                 "0.1.5-rc.3": "incompatible",
@@ -25,8 +25,8 @@
                 "0.1.6-alpha.2": "unknown",
                 "0.1.7-alpha.1": "unknown",
                 "0.1.7-alpha.2": "unknown",
-                "0.1.7-rc.1": "compatible",
-                "0.1.7-rc.2": "compatible",
+                "0.1.7-rc.1": "incompatible",
+                "0.1.7-rc.2": "incompatible",
                 "0.2.0-rc.2": "compatible"
             },
             "node": ">=20.18",
@@ -37,7 +37,7 @@
         }
     },
     "scripts": {
-        "test": "node --test tests/settings-write-verify.test.mjs"
+        "test": "node --test tests/settings-write-verify.test.mjs && node --test tests/plugin-page.test.mjs"
     },
     "files": [
         "index.js",
@@ -69,8 +69,8 @@
     },
     "peerDependencies": {
         "react": "^18.2.0",
-        "@deepseek-ai/dsh-settings": "^0.1.7-rc.1 || 0.2.0-rc.2",
-        "@deepseek-ai/dsh-llm": "^0.1.7-rc.1 || 0.2.0-rc.2"
+        "@deepseek-ai/dsh-settings": ">=0.2.0-rc.2 <0.3.0",
+        "@deepseek-ai/dsh-llm": ">=0.2.0-rc.2 <0.3.0"
     },
     "dependencies": {
         "@deepseek-ai/schemastery": "^3.18.4"

@@ -1,5 +1,9 @@
 # dsh-plugin-marketplace
 
+## 配置入口（DSH 0.2.0-rc.2 起）
+
+在首页侧边栏打开 **插件 → 已安装 → dsh-plugin-marketplace**，直接在插件详情页配置并保存。配置页注册到官方的 `plugins.bundle.config` 接口；全局设置页不再重复显示配置入口。Web 与桌面版使用相同界面，本版要求 DSH 0.2.0-rc.2 或更新的 0.2.x 版本。现有配置无需迁移。
+
 **GitHub**: [Scorp1o117/dsh-plugin-marketplace](https://github.com/Scorp1o117/dsh-plugin-marketplace) · **npm**: [dsh-plugin-marketplace](https://www.npmjs.com/package/dsh-plugin-marketplace) · [English](README.md)
 
 [![Enhancement Suite](https://img.shields.io/badge/part%20of-Enhancement%20Suite-3964fe)](https://github.com/Scorp1o117/dsh-enhancement-suite) [![npm](https://img.shields.io/npm/v/dsh-enhancement-suite)](https://www.npmjs.com/package/dsh-enhancement-suite)
@@ -54,7 +58,7 @@ dsh plugin --profile web add dsh-plugin-marketplace
 > `cordis.patch.yml` 里那一行**——bundle 层自己会插入条目，两行同 id 会让启动
 > 直接报 `duplicate loader entry id: plugin-marketplace`。两种方式二选一，别同时用。
 
-然后重启 `dsh web`（新客户端插件需要重启进程才会被扫描进浏览器清单），打开 **设置 → 插件市场**。
+然后重启 `dsh web`（新客户端插件需要重启进程才会被扫描进浏览器清单），打开 **插件 → dsh-plugin-marketplace**。
 
 DSH `0.1.0-rc.7` 起会公开全部已注册的 settings 命名空间，插件市场无需再修改官方文件。
 因此从 `0.2.8` 起最低支持 DSH `0.1.0-rc.7`。仍使用 DSH `0.1.0-rc.6` 的用户
