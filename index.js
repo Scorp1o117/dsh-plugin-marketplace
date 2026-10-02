@@ -10,17 +10,17 @@
  *
  * The settings section UI itself lives in the browser half (exports["./client"]).
  */
-import { execFile } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { AsyncResource } from "node:async_hooks";
 import { join } from "node:path";
-import os from "node:os";
+import { activeProfile, runInstall, writeState } from "./runtime.js";
 import z from "@deepseek-ai/schemastery";
 import { BlockAssembler, createUserMessage } from "@deepseek-ai/dsh-llm";
 
 /** Cordis plugin name. */
 const name = "plugin-marketplace";
 /** Services this plugin needs injected from the host tree (ctx.get requires inject). */
-const inject = ["llm", "agentDefaultModel"];
+const inject = ["settings", "profileContext", "llm", "agentDefaultModel"];
 /** Settings namespace owned by this plugin (Web UI settings section + install channel). */
 const NS = "plugin-marketplace";
 
@@ -62,28 +62,30 @@ function apply(ctx, config) {
   let lastTs = 0;
   let lastExplainTs = 0;
 
-  // ── settings-backed configuration ─────────────────────────────────────────
-  // The browser half edits this namespace; every write fires the onChange
-  // handler below, which is what turns an `install` request into a real
-  // install.
-  // Compat shim: dsh-settings 0.1.2-rc.1 removed the module-level
-  // `installSettingsSection` export (the provider now lives at ctx.settings).
-  // Inline the same logic via ctx.inject(["settings"]) — works on both
-  // 0.1.1 (module export wrapper) and 0.1.2 (ctx.settings) hosts.
-  // DSH 0.1.7 stores live plugin fields in the profile patch. Config is a
-  // volatile proxy, and the settings service emits after a committed edit.
+  // settings/document-updated may fire inside the Host's HMR transaction.
+  // Start consumption on the next task, and cancel scheduled work on unload.
+  let scheduled;
+  let disposed = false;
+  // Capture the plugin's startup context. A timer created by an HMR event
+  // inherits its AsyncLocalStorage transaction even after that transaction
+  // settles; consume requests in this resource's context instead.
+  const consumer = new AsyncResource("plugin-marketplace-requests");
+  function scheduleRequests() {
+    if (disposed || scheduled !== undefined) return;
+    scheduled = setTimeout(() => {
+      scheduled = undefined;
+      consumer.runInAsyncScope(() => {
+        void maybeRunInstall();
+        void maybeRunExplain();
+      });
+    }, 0);
+  }
   ctx.on("settings/document-updated", (id) => {
-    if (id !== NS) return;
-    void maybeRunInstall();
-    void maybeRunExplain();
+    if (id === NS) scheduleRequests();
   });
-  queueMicrotask(() => {
-    void maybeRunInstall();
-    void maybeRunExplain();
-  });
+  ctx.effect(() => () => { disposed = true; clearTimeout(scheduled); consumer.emitDestroy(); });
+  scheduleRequests();
 
-  // DSH 0.1.0-rc.7+ exposes registered settings namespaces natively, allowing
-  // the browser client to write install requests without modifying host files.
   /** Resolved current config (settings layer over the entry). */
   function current() {
     return sourceGetter();
@@ -91,35 +93,16 @@ function apply(ctx, config) {
 
   /** Write the install-state report (and clear the consumed request). */
   async function report(status, message, pkg) {
-    const settings = ctx.get("settings");
-    if (!settings) return;
-    const ts = Date.now();
-    await settings.update(NS, {
-      installState: { status, message, ts, pkg: pkg || "" },
+    await writeState(ctx.get("settings"), NS, {
+      installState: { status, message, ts: Date.now(), pkg: pkg || "" },
       install: { pkg: "", ts: 0 },
-    }).catch((error) => {
-      ctx.logger.warn(`[plugin-marketplace] state write failed: ${String(error)}`);
     });
-  }
-
-  /** Find the active profile name from the process args ("web" default). */
-  function profileName() {
-    const argv = process.argv;
-    const i = argv.indexOf("--profile");
-    if (i >= 0 && argv[i + 1]) return argv[i + 1];
-    return "web";
-  }
-
-  /** The dsh CLI entry used to boot this process (its own bin.js). */
-  function dshBin() {
-    return process.argv[1];
   }
 
   /** Read the profile manifest (its `dsh.profile.bundles` list), or null. */
   function profileManifest(profile) {
     try {
-      const dshHome = process.env.DSH_HOME || join(os.homedir(), ".dsh");
-      return JSON.parse(readFileSync(join(dshHome, "profiles", profile, "package.json"), "utf8"));
+      return JSON.parse(readFileSync(join(profile.dir, "package.json"), "utf8"));
     } catch {
       return null;
     }
@@ -128,8 +111,7 @@ function apply(ctx, config) {
   /** Whether the installed package declares dsh.bundle.patch (auto-mounted via its bundle layer). */
   function isBundlePackage(pkg, profile) {
     try {
-      const dshHome = process.env.DSH_HOME || join(os.homedir(), ".dsh");
-      const manifest = JSON.parse(readFileSync(join(dshHome, "profiles", profile, "node_modules", pkg, "package.json"), "utf8"));
+      const manifest = JSON.parse(readFileSync(join(profile.dir, "node_modules", pkg, "package.json"), "utf8"));
       return typeof manifest?.dsh?.bundle?.patch === "string" && manifest.dsh.bundle.patch.length > 0;
     } catch {
       return false;
@@ -145,8 +127,7 @@ function apply(ctx, config) {
    * removed instead, so reinstalling a bundle plugin never breaks boot.
    */
   function ensureMounted(pkg, profile) {
-    const dshHome = process.env.DSH_HOME || join(os.homedir(), ".dsh");
-    const patchPath = join(dshHome, "profiles", profile, "cordis.patch.yml");
+    const patchPath = join(profile.dir, "cordis.patch.yml");
     if (!existsSync(patchPath)) return " (patch file not found; mount manually)";
     const bundles = profileManifest(profile)?.dsh?.profile?.bundles ?? [];
     if (bundles.includes(pkg) || isBundlePackage(pkg, profile)) {
@@ -187,34 +168,20 @@ function apply(ctx, config) {
     return " (mounted in cordis.patch.yml)";
   }
 
-  /** Run the install; resolve {code, stdout, stderr}. */
-  function runInstall(pkg, profile) {
-    const bin = dshBin();
-    const node = process.execPath;
-    return new Promise((resolve) => {
-      execFile(node, [bin, "plugin", "--profile", profile, "add", pkg], {
-        timeout: 5 * 60 * 1000,
-        maxBuffer: 8 * 1024 * 1024,
-        windowsHide: true,
-      }, (error, stdout, stderr) => {
-        resolve({ code: error ? (error.code ?? 1) : 0, stdout, stderr });
-      });
-    });
-  }
-
   async function maybeRunInstall() {
+    let pkg = "";
     try {
       const cfg = current();
       const req = cfg?.install;
       if (!req || !req.pkg || req.ts === lastTs || req.ts === 0) return;
       lastTs = req.ts;
-      const pkg = String(req.pkg).trim();
+      pkg = String(req.pkg).trim();
       if (!PKG_NAME.test(pkg)) {
         await report("error", `invalid package name: ${pkg}`, pkg);
         return;
       }
-      const profile = profileName();
-      ctx.logger.info(`[plugin-marketplace] installing ${pkg} (profile=${profile})…`);
+      const profile = activeProfile(ctx);
+      ctx.logger.info(`[plugin-marketplace] installing ${pkg} (profile=${profile.name})…`);
       await report("running", `installing ${pkg}…`, pkg);
       const result = await runInstall(pkg, profile);
       if (result.code !== 0) {
@@ -228,23 +195,19 @@ function apply(ctx, config) {
       }
       const mountNote = ensureMounted(pkg, profile);
       ctx.logger.info(`[plugin-marketplace] ${pkg} installed${mountNote}`);
-      await report("ok", `${pkg} installed${mountNote}. Restart dsh web to load it.`, pkg);
+      await report("ok", `${pkg} installed${mountNote}. Restart DSH to load it.`, pkg);
     } catch (error) {
       ctx.logger.warn(`[plugin-marketplace] install flow failed: ${String(error)}`);
-      await report("error", String(error instanceof Error ? error.message : error));
+      await report("error", String(error instanceof Error ? error.message : error), pkg)
+        .catch((writeError) => ctx.logger.warn(`[plugin-marketplace] error state write failed: ${String(writeError)}`));
     }
   }
 
   /** Write the AI-explain result report (and clear the consumed request). */
   async function reportExplain(status, text, repo) {
-    const settings = ctx.get("settings");
-    if (!settings) return;
-    const ts = Date.now();
-    await settings.update(NS, {
-      aiExplainResult: { status, text, repo: repo || "", ts },
+    await writeState(ctx.get("settings"), NS, {
+      aiExplainResult: { status, text, repo: repo || "", ts: Date.now() },
       aiExplain: { repo: "", desc: "", readme: "", ts: 0 },
-    }).catch((error) => {
-      ctx.logger.warn(`[plugin-marketplace] explain state write failed: ${String(error)}`);
     });
   }
 
@@ -306,7 +269,8 @@ function apply(ctx, config) {
       await reportExplain("ok", text, repo);
     } catch (error) {
       ctx.logger.warn(`[plugin-marketplace] explain flow failed: ${String(error)}`);
-      await reportExplain("error", String(error instanceof Error ? error.message : error), repo);
+      await reportExplain("error", String(error instanceof Error ? error.message : error), repo)
+        .catch((writeError) => ctx.logger.warn(`[plugin-marketplace] explain error state write failed: ${String(writeError)}`));
     }
   }
 }

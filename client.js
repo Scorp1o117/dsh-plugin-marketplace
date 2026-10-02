@@ -78,6 +78,7 @@ window.__ModuleLoader__.load({
       installOk: "已安装：{msg}",
       installErr: "安装失败：{msg}",
       installIdle: "",
+      hostTimeout: "宿主在 15 秒内没有确认请求，请检查插件是否启用并重启 DSH 后重试。",
       installingHint: "正在后台执行 dsh plugin add，请稍候…",
       aiExplain: "🤖 AI 解释",
       aiExplaining: "AI 解释中，请稍候…",
@@ -109,6 +110,7 @@ window.__ModuleLoader__.load({
       installOk: "Installed: {msg}",
       installErr: "Install failed: {msg}",
       installIdle: "",
+      hostTimeout: "The Host did not acknowledge the request within 15 seconds. Check that the plugin is enabled and restart DSH before retrying.",
       installingHint: "Running dsh plugin add in the background…",
       aiExplain: "🤖 AI Explain",
       aiExplaining: "AI is explaining…",
@@ -337,6 +339,30 @@ window.__ModuleLoader__.load({
         var un = typeof scope.subscribe === "function" ? scope.subscribe(sync) : null;
         return function () { alive = false; if (un) un(); if (scope.dispose) scope.dispose(); };
       }, [scope]);
+      var channel = installState && installState.status === "ready" ? installState.value : {};
+      var installRequest = channel.install || {};
+      var explainRequest = channel.aiExplain || {};
+      react.useEffect(function () {
+        if (!installRequest.pkg || !installRequest.ts) return;
+        var timer = setTimeout(function () {
+          set(function (prev) { return Object.assign({}, prev, { installError: t("hostTimeout") }); });
+        }, 15000);
+        return function () { clearTimeout(timer); };
+      }, [installRequest.pkg, installRequest.ts, t]);
+      react.useEffect(function () {
+        if (!explainRequest.repo || !explainRequest.ts) return;
+        var timer = setTimeout(function () {
+          set(function (prev) { return Object.assign({}, prev, { explainError: t("hostTimeout") }); });
+        }, 15000);
+        return function () { clearTimeout(timer); };
+      }, [explainRequest.repo, explainRequest.ts, t]);
+      // Pending requests immediately show progress, before the Host acknowledges.
+      var visibleInstall = installRequest.pkg ? {
+        status: s.installError ? "error" : "running", pkg: installRequest.pkg, message: s.installError || ""
+      } : channel.installState;
+      var visibleExplain = explainRequest.repo ? {
+        status: s.explainError ? "error" : "running", repo: explainRequest.repo, text: s.explainError || ""
+      } : channel.aiExplainResult;
       // Older hosts can still return settings-not-exposed. Recommend upgrading
       // instead of mutating the installed DSH package on disk.
       var mutateError = function (detail, fallback) {
@@ -425,7 +451,7 @@ window.__ModuleLoader__.load({
             var open = s.open && s.open.fullName === p.fullName;
             return h("div", { key: p.fullName, className: "__mp_item" },
               h(PluginCard, { plugin: p, t: t, onOpen: function () { openDetail(p); } }),
-              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: installState && installState.status === "ready" ? installState.value.installState : null, onInstall: onInstall, ghError: t("ghError"), explainState: installState && installState.status === "ready" ? installState.value.aiExplainResult : null, explainError: s.explainError, onExplain: onExplain, bundleInfo: s.bundleInfo }) : null
+              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: visibleInstall, onInstall: onInstall, ghError: t("ghError"), explainState: visibleExplain, explainError: s.explainError, onExplain: onExplain, bundleInfo: s.bundleInfo }) : null
             );
           })
         ),

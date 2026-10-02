@@ -1,5 +1,12 @@
 # dsh-plugin-marketplace
 
+## v0.4.1：桌面端请求闭环
+
+- 一键安装使用当前 Host 的 profile 和数据目录，解析桌面 Host 的 `cli.js`；Electron 子进程启用 `ELECTRON_RUN_AS_NODE=1` 与 `--expose-internals`。
+- 安装和 AI 解释请求延后到 settings/HMR 事务之外处理，状态回写遇到暂时拒绝会重试，启动进程失败会返回安装错误。
+- UI 在等待宿主确认时显示进度；15 秒未确认会显示错误。此超时只针对请求确认，不限制实际安装或模型响应时间。
+- 需要更新到本版本并重启 DSH。GitHub 仓库没有同名 npm 包时，安装仍会明确报错。
+
 ## 配置入口（DSH 0.2.0-rc.2 起）
 
 在首页侧边栏打开 **插件 → 已安装 → dsh-plugin-marketplace**，直接在插件详情页配置并保存。配置页注册到官方的 `plugins.bundle.config` 接口；全局设置页不再重复显示配置入口。Web 与桌面版使用相同界面，本版要求 DSH 0.2.0-rc.2 或更新的 0.2.x 版本。现有配置无需迁移。

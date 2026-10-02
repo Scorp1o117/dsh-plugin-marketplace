@@ -18,3 +18,55 @@ test('the installed plugin opens its own configuration from the Plugins page',()
   if(manifest.name==='dsh-soul-md')assert.ok(entries.some(entry=>entry.options.id==='soul-md-persona'),'retain the conversation persona switcher');
   assert.ok(manifest.files.includes('client.js'));assert.equal(manifest.dsh.client.platform,'web');
 });
+
+test('pending install and explanation requests show progress and a missing acknowledgement times out', () => {
+  let bundle;
+  const timers = [];
+  const cleared = [];
+  vm.runInNewContext(source, {
+    window: { __ModuleLoader__: { load(value) { bundle = value; } } },
+    setTimeout(callback, ms) { const timer = { callback, ms }; timers.push(timer); return timer; },
+    clearTimeout(timer) { cleared.push(timer); }, console,
+  });
+  const pluginRow = { fullName: 'owner/example' };
+  let state = { items: [pluginRow], open: pluginRow };
+  const snapshot = { status: 'ready', value: {
+    install: { pkg: 'example', ts: 1 }, aiExplain: { repo: 'owner/example', ts: 2 },
+  } };
+  const effects = [];
+  let hook = 0;
+  const react = {
+    createElement: (type, props, ...children) => ({ type, props, children }),
+    useState: () => hook++ === 0 ? [state, (update) => { state = update(state); }] : [snapshot, () => {}],
+    useEffect: (callback) => effects.push(callback), useCallback: (callback) => callback,
+  };
+  const plugin = bundle.factory(() => react);
+  let render;
+  plugin.apply({ locale: { bind: () => key => key, register: () => () => {} }, effect: fn => fn(),
+    configForms: { get: () => ({ getSnapshot: () => snapshot }) }, connection: {},
+    slots: { inject: (_name, fn) => fn(), register: (_options, callback) => { render = callback; } },
+  });
+  const page = render({ t: key => key });
+  const tree = page.type(page.props);
+  const nodes = [];
+  const visit = (node) => {
+    if (Array.isArray(node)) return node.forEach(visit);
+    if (!node || typeof node !== 'object') return;
+    nodes.push(node); (node.children || []).forEach(visit);
+  };
+  visit(tree);
+  const detail = nodes.find(node => node.type?.name === 'DetailPanel');
+  assert.equal(detail.props.installState.status, 'running');
+  assert.equal(detail.props.installState.pkg, 'example');
+  assert.equal(detail.props.explainState.status, 'running');
+  assert.equal(detail.props.explainState.repo, 'owner/example');
+  // Only run the two acknowledgement effects; no external fetches are needed.
+  const disposeInstall = effects[1]();
+  const disposeExplain = effects[2]();
+  assert.deepEqual(timers.map(timer => timer.ms), [15000, 15000]);
+  timers.forEach(timer => timer.callback());
+  assert.equal(state.installError, 'hostTimeout');
+  assert.equal(state.explainError, 'hostTimeout');
+  disposeInstall(); disposeExplain();
+  assert.equal(cleared.length, 2);
+});

@@ -1,5 +1,12 @@
 # dsh-plugin-marketplace
 
+## v0.4.1: desktop request handling
+
+- Installation targets the active Host profile and home, resolves the Desktop Host `cli.js`, and runs Electron with `ELECTRON_RUN_AS_NODE=1` and `--expose-internals`.
+- Install and AI-explain requests start outside the settings/HMR transaction. Transient state-write refusals are retried; spawn failures return an installation error.
+- The UI shows progress while awaiting Host acknowledgement, and an error after 15 seconds without acknowledgement. This does not cap installation or model response time.
+- Update to this release and restart DSH. Repositories without a matching npm package still return an explicit installation error.
+
 ## Configuration page (DSH 0.2.0-rc.2 and later)
 
 Open **Plugins → Installed → dsh-plugin-marketplace** from the homepage sidebar to configure and save this plugin. The page uses the official `plugins.bundle.config` interface, without a duplicate entry in global Settings. Web and Desktop share the page. This version requires DSH 0.2.0-rc.2 or a later 0.2.x host; existing configuration is retained.
