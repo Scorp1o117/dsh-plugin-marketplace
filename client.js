@@ -41,6 +41,35 @@ window.__ModuleLoader__.load({
       ".__mp_link{color:var(--dsw-alias-brand-primary);font-size:12px;text-decoration:none}" +
       ".__mp_btnPrimary{border-color:var(--dsw-alias-state-business-primary, #679efe);background:var(--dsw-alias-state-business-primary, #679efe);color:#fff}" +
       ".__mp_error{color:var(--dsw-alias-label-error);font-size:12px;margin:8px 0 0}";
+    // Scoped flat controls retain native keyboard and form behavior.
+    CSS += `
+.dsh-flat.__mp_root{width:100%;max-width:720px;gap:14px;font-size:13px;line-height:1.65;color:var(--dsw-alias-label-primary);--flat-accent:var(--dsw-alias-state-business-primary,#3964fe);--flat-border:var(--dsw-alias-border-l2,#dce2eb)}
+.dsh-flat.__mp_root *{box-sizing:border-box;min-width:0}
+.dsh-flat.__mp_root p{margin:0}
+.dsh-flat.__mp_root label[class$="_field"]{gap:7px}
+.dsh-flat.__mp_root [class$="_label"]{font-size:13px;font-weight:500}
+.dsh-flat.__mp_root [class$="_hint"]{font-size:12px;line-height:1.65}
+.dsh-flat.__mp_root input:not([type=checkbox]),.dsh-flat.__mp_root select,.dsh-flat.__mp_root textarea{width:100%;border:1px solid var(--flat-border);border-radius:6px;background:var(--dsw-alias-bg-layer-3);color:inherit;font:inherit;padding:9px 12px;min-height:40px;box-shadow:none;transition:border-color .15s}
+.dsh-flat.__mp_root input:hover:not(:disabled),.dsh-flat.__mp_root select:hover:not(:disabled),.dsh-flat.__mp_root textarea:hover:not(:disabled){border-color:var(--dsw-alias-label-tertiary)}
+.dsh-flat.__mp_root select{appearance:none;padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m2 2 4 4 4-4' fill='none' stroke='%23778091' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.dsh-flat.__mp_root :is(input,select,textarea,button,summary,a):focus-visible{outline:2px solid var(--flat-accent);outline-offset:3px}
+.dsh-flat.__mp_root :is(input,select,textarea,button):disabled{opacity:.5;cursor:default}
+.dsh-flat.__mp_root [class$="_actions"]{flex-wrap:wrap;gap:10px;margin-top:4px;padding-top:16px;border-top:1px solid var(--flat-border)}
+.dsh-flat.__mp_root .__mp_grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:16px}
+.dsh-flat.__mp_root .__mp_card{width:100%;max-width:100%;padding:18px;gap:10px;border-radius:6px;background:var(--dsw-alias-bg-layer-3);min-height:146px;transition:border-color .15s}
+.dsh-flat.__mp_root .__mp_card:hover{border-color:var(--flat-accent)}
+.dsh-flat.__mp_root .__mp_name{font-size:14px}
+.dsh-flat.__mp_root .__mp_meta{flex-wrap:wrap}
+.dsh-flat.__mp_root .__mp_toolbar{gap:10px;margin-bottom:18px}
+.dsh-flat.__mp_root .__mp_input{min-width:160px;width:auto}
+.dsh-flat.__mp_root .__mp_select{width:auto}
+.dsh-flat.__mp_root .__mp_detail{border:0;border-left:2px solid var(--flat-border);border-radius:0;background:none;margin:0;padding:4px 0 4px 16px;gap:12px}
+@media(max-width:480px){.dsh-flat.__mp_root{gap:16px}.dsh-flat.__mp_root .__mp_toolbar{align-items:stretch}.dsh-flat.__mp_root .__mp_input{flex-basis:100%}}
+@media(prefers-reduced-motion:reduce){.dsh-flat.__mp_root *,.dsh-flat.__mp_root input[type=checkbox]::before{transition:none}}
+.dsh-flat.__mp_root button:not(.__mp_card){border-radius:6px;min-height:34px;padding:7px 14px;font:inherit;font-size:12px;box-shadow:none}
+.dsh-flat.__mp_root :is(h2,h3){margin:0;font-size:14px;font-weight:600}
+.dsh-flat.__mp_root{display:flex;flex-direction:column}
+`;
     var tagId = "dsh-plugin-marketplace/main.css";
     if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
       var tag = document.createElement("style");
@@ -55,6 +84,8 @@ window.__ModuleLoader__.load({
     var inject = ["slots", "locale", "configForms", "connection"];
     var zh = {
       nav: "插件市场",
+      searchBtn: "搜索",
+      sortLabel: "排序方式",
       search: "搜索插件（关键词或留空浏览全部）…",
       sortStars: "按 Star 排序",
       sortUpdated: "按更新时间排序",
@@ -87,6 +118,8 @@ window.__ModuleLoader__.load({
     };
     var en = {
       nav: "Plugin Marketplace",
+      searchBtn: "Search",
+      sortLabel: "Sort plugins",
       search: "Search plugins (keyword, or empty to browse all)…",
       sortStars: "Sort by stars",
       sortUpdated: "Sort by updated",
@@ -324,6 +357,7 @@ window.__ModuleLoader__.load({
     }
 
     function MarketplaceSection(props) {
+      useLocale(props.locale);
       var t = props.t;
       var scope = props.scope;
       var api = props.api;
@@ -345,29 +379,29 @@ window.__ModuleLoader__.load({
       react.useEffect(function () {
         if (!installRequest.pkg || !installRequest.ts) return;
         var timer = setTimeout(function () {
-          set(function (prev) { return Object.assign({}, prev, { installError: t("hostTimeout") }); });
+          set(function (prev) { return Object.assign({}, prev, { installError: { key: "hostTimeout" } }); });
         }, 15000);
         return function () { clearTimeout(timer); };
       }, [installRequest.pkg, installRequest.ts, t]);
       react.useEffect(function () {
         if (!explainRequest.repo || !explainRequest.ts) return;
         var timer = setTimeout(function () {
-          set(function (prev) { return Object.assign({}, prev, { explainError: t("hostTimeout") }); });
+          set(function (prev) { return Object.assign({}, prev, { explainError: { key: "hostTimeout" } }); });
         }, 15000);
         return function () { clearTimeout(timer); };
       }, [explainRequest.repo, explainRequest.ts, t]);
       // Pending requests immediately show progress, before the Host acknowledges.
       var visibleInstall = installRequest.pkg ? {
-        status: s.installError ? "error" : "running", pkg: installRequest.pkg, message: s.installError || ""
+        status: s.installError ? "error" : "running", pkg: installRequest.pkg, message: messageText(t, s.installError)
       } : channel.installState;
       var visibleExplain = explainRequest.repo ? {
-        status: s.explainError ? "error" : "running", repo: explainRequest.repo, text: s.explainError || ""
+        status: s.explainError ? "error" : "running", repo: explainRequest.repo, text: messageText(t, s.explainError)
       } : channel.aiExplainResult;
       // Older hosts can still return settings-not-exposed. Recommend upgrading
       // instead of mutating the installed DSH package on disk.
       var mutateError = function (detail, fallback) {
-        if (detail && detail.code === "settings-not-exposed") return t("notExposed");
-        return String(detail && (detail.message || detail.code) || fallback);
+        if (detail && detail.code === "settings-not-exposed") return { key: "notExposed" };
+        return { key: "", detail: String(detail && (detail.message || detail.code) || fallback) };
       };
       var onInstall = react.useCallback(function (pkg) {
         set(function (prev) { return Object.assign({}, prev, { installError: null }); });
@@ -394,7 +428,7 @@ window.__ModuleLoader__.load({
             return Object.assign({}, prev, { items: items, total: out.total, loading: false, page: page, q: q, sort: sort });
           });
         }).catch(function () {
-          set(function (prev) { return Object.assign({}, prev, { loading: false, error: t("ghError") }); });
+          set(function (prev) { return Object.assign({}, prev, { loading: false, error: { key: "ghError" } }); });
         });
       }, [t]);
       react.useEffect(function () {
@@ -435,10 +469,11 @@ window.__ModuleLoader__.load({
         load(s.q, s.sort, 1, false);
       };
       var more = function () { load(s.q, s.sort, s.page + 1, true); };
-      return h("div", null,
+      return h("div", { className: "__mp_root dsh-flat" },
         h("form", { className: "__mp_toolbar", onSubmit: submit },
-          h("input", { className: "__mp_input", type: "search", value: s.q, placeholder: t("search"), onChange: function (e) { set(function (prev) { return Object.assign({}, prev, { q: e.target.value }); }); } }),
-          h("select", { className: "__mp_select", value: s.sort, onChange: function (e) { load(s.q, e.target.value, 1, false); } },
+          h("input", { className: "__mp_input", type: "search", value: s.q, "aria-label": t("search"), placeholder: t("search"), onChange: function (e) { set(function (prev) { return Object.assign({}, prev, { q: e.target.value }); }); } }),
+          h("button", { type: "submit", className: "__mp_btnPrimary", disabled: s.loading }, t("searchBtn")),
+          h("select", { className: "__mp_select", "aria-label": t("sortLabel"), value: s.sort, onChange: function (e) { load(s.q, e.target.value, 1, false); } },
             h("option", { value: "stars" }, t("sortStars")),
             h("option", { value: "updated" }, t("sortUpdated"))
           )
@@ -451,19 +486,34 @@ window.__ModuleLoader__.load({
             var open = s.open && s.open.fullName === p.fullName;
             return h("div", { key: p.fullName, className: "__mp_item" },
               h(PluginCard, { plugin: p, t: t, onOpen: function () { openDetail(p); } }),
-              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: visibleInstall, onInstall: onInstall, ghError: t("ghError"), explainState: visibleExplain, explainError: s.explainError, onExplain: onExplain, bundleInfo: s.bundleInfo }) : null
+              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: visibleInstall, onInstall: onInstall, ghError: t("ghError"), explainState: visibleExplain, explainError: messageText(t, s.explainError), onExplain: onExplain, bundleInfo: s.bundleInfo }) : null
             );
           })
         ),
         s.loading ? h("p", { className: "__mp_status" }, t("loading")) : null,
-        s.error ? h("p", { className: "__mp_error" }, s.error) : null,
+        s.error ? h("p", { className: "__mp_error" }, messageText(t, s.error)) : null,
         s.items.length === 0 && !s.loading && !s.error ? h("p", { className: "__mp_status" }, t("empty")) : null,
         s.items.length > 0 ? h("button", { type: "button", className: "__mp_more", onClick: more, disabled: s.loading }, t("loadMore")) : null,
-        s.installError ? h("p", { className: "__mp_error" }, s.installError) : null
+        s.installError ? h("p", { className: "__mp_error" }, messageText(t, s.installError)) : null
       );
     }
 
     // ── plugin ────────────────────────────────────────────────────────────
+
+    // Follow the host language without remounting the form or losing drafts.
+    function useLocale(locale) {
+      var refresh = react.useState(0)[1];
+      react.useEffect(function () {
+        if (!locale || typeof locale.subscribe !== "function") return;
+        return locale.subscribe(function () { refresh(function (revision) { return revision + 1; }); });
+      }, [locale]);
+    }
+    // Keep translation keys in state so feedback follows later language changes.
+    function messageText(t, message) {
+      if (!message) return "";
+      return (message.key ? t(message.key) : "") + (message.detailKey ? ": " + t(message.detailKey) : message.detail ? (message.key ? ": " : "") + message.detail : "");
+    }
+
     function apply(ctx) {
       var t = ctx.locale.bind(NS);
       ctx.effect(function () { return ctx.locale.register(NS, { zh: zh, en: en }); }, "dsh-plugin-marketplace: dictionaries");
@@ -477,7 +527,7 @@ window.__ModuleLoader__.load({
           key: "dsh-plugin-marketplace",
           locale: NS
         }, function (props) {
-          return h(MarketplaceSection, Object.assign({}, props, { scope: scope, api: api }));
+          return h(MarketplaceSection, Object.assign({}, props, { scope: scope, api: api, t: t, locale: ctx.locale }));
         });
       });
     }

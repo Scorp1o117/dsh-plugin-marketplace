@@ -37,7 +37,7 @@ test('pending install and explanation requests show progress and a missing ackno
   let hook = 0;
   const react = {
     createElement: (type, props, ...children) => ({ type, props, children }),
-    useState: () => hook++ === 0 ? [state, (update) => { state = update(state); }] : [snapshot, () => {}],
+    useState: () => hook++ === 0 ? [0, () => {}] : hook === 2 ? [state, (update) => { state = update(state); }] : [snapshot, () => {}],
     useEffect: (callback) => effects.push(callback), useCallback: (callback) => callback,
   };
   const plugin = bundle.factory(() => react);
@@ -61,12 +61,12 @@ test('pending install and explanation requests show progress and a missing ackno
   assert.equal(detail.props.explainState.status, 'running');
   assert.equal(detail.props.explainState.repo, 'owner/example');
   // Only run the two acknowledgement effects; no external fetches are needed.
-  const disposeInstall = effects[1]();
-  const disposeExplain = effects[2]();
+  const disposeInstall = effects[2]();
+  const disposeExplain = effects[3]();
   assert.deepEqual(timers.map(timer => timer.ms), [15000, 15000]);
   timers.forEach(timer => timer.callback());
-  assert.equal(state.installError, 'hostTimeout');
-  assert.equal(state.explainError, 'hostTimeout');
+  assert.equal(state.installError.key, 'hostTimeout');
+  assert.equal(state.explainError.key, 'hostTimeout');
   disposeInstall(); disposeExplain();
   assert.equal(cleared.length, 2);
 });
