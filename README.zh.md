@@ -1,5 +1,7 @@
 # dsh-plugin-marketplace
 
+插件跟随 DSH 的语言设置（DSH 0.2.0-rc.2 内置中文和 English），配置页面、状态提示和插件列表名称/简介同步切换。扩展语言使用宿主的回退链。切换语言保留未保存的设置，无需单独选择插件语言。
+
 ## v0.4.1：桌面端请求闭环
 
 - 一键安装使用当前 Host 的 profile 和数据目录，解析桌面 Host 的 `cli.js`；Electron 子进程启用 `ELECTRON_RUN_AS_NODE=1` 与 `--expose-internals`。

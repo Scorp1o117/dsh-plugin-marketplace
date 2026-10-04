@@ -353,6 +353,7 @@ window.__ModuleLoader__.load({
     }
 
     function MarketplaceSection(props) {
+      useLocale(props.locale);
       var t = props.t;
       var scope = props.scope;
       var api = props.api;
@@ -374,29 +375,29 @@ window.__ModuleLoader__.load({
       react.useEffect(function () {
         if (!installRequest.pkg || !installRequest.ts) return;
         var timer = setTimeout(function () {
-          set(function (prev) { return Object.assign({}, prev, { installError: t("hostTimeout") }); });
+          set(function (prev) { return Object.assign({}, prev, { installError: { key: "hostTimeout" } }); });
         }, 15000);
         return function () { clearTimeout(timer); };
       }, [installRequest.pkg, installRequest.ts, t]);
       react.useEffect(function () {
         if (!explainRequest.repo || !explainRequest.ts) return;
         var timer = setTimeout(function () {
-          set(function (prev) { return Object.assign({}, prev, { explainError: t("hostTimeout") }); });
+          set(function (prev) { return Object.assign({}, prev, { explainError: { key: "hostTimeout" } }); });
         }, 15000);
         return function () { clearTimeout(timer); };
       }, [explainRequest.repo, explainRequest.ts, t]);
       // Pending requests immediately show progress, before the Host acknowledges.
       var visibleInstall = installRequest.pkg ? {
-        status: s.installError ? "error" : "running", pkg: installRequest.pkg, message: s.installError || ""
+        status: s.installError ? "error" : "running", pkg: installRequest.pkg, message: messageText(t, s.installError)
       } : channel.installState;
       var visibleExplain = explainRequest.repo ? {
-        status: s.explainError ? "error" : "running", repo: explainRequest.repo, text: s.explainError || ""
+        status: s.explainError ? "error" : "running", repo: explainRequest.repo, text: messageText(t, s.explainError)
       } : channel.aiExplainResult;
       // Older hosts can still return settings-not-exposed. Recommend upgrading
       // instead of mutating the installed DSH package on disk.
       var mutateError = function (detail, fallback) {
-        if (detail && detail.code === "settings-not-exposed") return t("notExposed");
-        return String(detail && (detail.message || detail.code) || fallback);
+        if (detail && detail.code === "settings-not-exposed") return { key: "notExposed" };
+        return { key: "", detail: String(detail && (detail.message || detail.code) || fallback) };
       };
       var onInstall = react.useCallback(function (pkg) {
         set(function (prev) { return Object.assign({}, prev, { installError: null }); });
@@ -423,7 +424,7 @@ window.__ModuleLoader__.load({
             return Object.assign({}, prev, { items: items, total: out.total, loading: false, page: page, q: q, sort: sort });
           });
         }).catch(function () {
-          set(function (prev) { return Object.assign({}, prev, { loading: false, error: t("ghError") }); });
+          set(function (prev) { return Object.assign({}, prev, { loading: false, error: { key: "ghError" } }); });
         });
       }, [t]);
       react.useEffect(function () {
@@ -480,19 +481,34 @@ window.__ModuleLoader__.load({
             var open = s.open && s.open.fullName === p.fullName;
             return h("div", { key: p.fullName, className: "__mp_item" },
               h(PluginCard, { plugin: p, t: t, onOpen: function () { openDetail(p); } }),
-              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: visibleInstall, onInstall: onInstall, ghError: t("ghError"), explainState: visibleExplain, explainError: s.explainError, onExplain: onExplain, bundleInfo: s.bundleInfo }) : null
+              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: visibleInstall, onInstall: onInstall, ghError: t("ghError"), explainState: visibleExplain, explainError: messageText(t, s.explainError), onExplain: onExplain, bundleInfo: s.bundleInfo }) : null
             );
           })
         ),
         s.loading ? h("p", { className: "__mp_status" }, t("loading")) : null,
-        s.error ? h("p", { className: "__mp_error" }, s.error) : null,
+        s.error ? h("p", { className: "__mp_error" }, messageText(t, s.error)) : null,
         s.items.length === 0 && !s.loading && !s.error ? h("p", { className: "__mp_status" }, t("empty")) : null,
         s.items.length > 0 ? h("button", { type: "button", className: "__mp_more", onClick: more, disabled: s.loading }, t("loadMore")) : null,
-        s.installError ? h("p", { className: "__mp_error" }, s.installError) : null
+        s.installError ? h("p", { className: "__mp_error" }, messageText(t, s.installError)) : null
       );
     }
 
     // ── plugin ────────────────────────────────────────────────────────────
+
+    // Follow the host language without remounting the form or losing drafts.
+    function useLocale(locale) {
+      var refresh = react.useState(0)[1];
+      react.useEffect(function () {
+        if (!locale || typeof locale.subscribe !== "function") return;
+        return locale.subscribe(function () { refresh(function (revision) { return revision + 1; }); });
+      }, [locale]);
+    }
+    // Keep translation keys in state so feedback follows later language changes.
+    function messageText(t, message) {
+      if (!message) return "";
+      return (message.key ? t(message.key) : "") + (message.detailKey ? ": " + t(message.detailKey) : message.detail ? (message.key ? ": " : "") + message.detail : "");
+    }
+
     function apply(ctx) {
       var t = ctx.locale.bind(NS);
       ctx.effect(function () { return ctx.locale.register(NS, { zh: zh, en: en }); }, "dsh-plugin-marketplace: dictionaries");
@@ -506,7 +522,7 @@ window.__ModuleLoader__.load({
           key: "dsh-plugin-marketplace",
           locale: NS
         }, function (props) {
-          return h(MarketplaceSection, Object.assign({}, props, { scope: scope, api: api }));
+          return h(MarketplaceSection, Object.assign({}, props, { scope: scope, api: api, t: t, locale: ctx.locale }));
         });
       });
     }

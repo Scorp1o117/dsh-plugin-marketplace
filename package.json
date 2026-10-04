@@ -7,7 +7,8 @@
     "exports": {
         ".": "./index.js",
         "./client": "./client.js",
-        "./package.json": "./package.json"
+        "./package.json": "./package.json",
+        "./locale/*.json": "./locale/*.json"
     },
     "dsh": {
         "bundle": {
@@ -37,9 +38,10 @@
         }
     },
     "scripts": {
-        "test": "node --test tests/settings-write-verify.test.mjs tests/runtime.test.mjs && node --test tests/plugin-page.test.mjs"
+        "test": "node --test tests/settings-write-verify.test.mjs tests/runtime.test.mjs && node --test tests/plugin-page.test.mjs && node --test tests/locale.test.mjs"
     },
     "files": [
+        "locale",
         "index.js",
         "runtime.js",
         "client.js",

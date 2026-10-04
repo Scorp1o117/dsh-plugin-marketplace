@@ -1,5 +1,7 @@
 # dsh-plugin-marketplace
 
+The plugin follows the DSH language setting (Chinese and English in DSH 0.2.0-rc.2), including configuration, status messages and plugin-list metadata. Language-pack locales use the host fallback chain. Switching languages preserves unsaved settings; there is no separate plugin language selector.
+
 ## v0.4.1: desktop request handling
 
 - Installation targets the active Host profile and home, resolves the Desktop Host `cli.js`, and runs Electron with `ELECTRON_RUN_AS_NODE=1` and `--expose-internals`.
