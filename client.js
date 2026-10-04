@@ -41,6 +41,35 @@ window.__ModuleLoader__.load({
       ".__mp_link{color:var(--dsw-alias-brand-primary);font-size:12px;text-decoration:none}" +
       ".__mp_btnPrimary{border-color:var(--dsw-alias-state-business-primary, #679efe);background:var(--dsw-alias-state-business-primary, #679efe);color:#fff}" +
       ".__mp_error{color:var(--dsw-alias-label-error);font-size:12px;margin:8px 0 0}";
+    // Scoped flat controls retain native keyboard and form behavior.
+    CSS += `
+.dsh-flat.__mp_root{width:100%;max-width:720px;gap:14px;font-size:13px;line-height:1.65;color:var(--dsw-alias-label-primary);--flat-accent:var(--dsw-alias-state-business-primary,#3964fe);--flat-border:var(--dsw-alias-border-l2,#dce2eb)}
+.dsh-flat.__mp_root *{box-sizing:border-box;min-width:0}
+.dsh-flat.__mp_root p{margin:0}
+.dsh-flat.__mp_root label[class$="_field"]{gap:7px}
+.dsh-flat.__mp_root [class$="_label"]{font-size:13px;font-weight:500}
+.dsh-flat.__mp_root [class$="_hint"]{font-size:12px;line-height:1.65}
+.dsh-flat.__mp_root input:not([type=checkbox]),.dsh-flat.__mp_root select,.dsh-flat.__mp_root textarea{width:100%;border:1px solid var(--flat-border);border-radius:6px;background:var(--dsw-alias-bg-layer-3);color:inherit;font:inherit;padding:9px 12px;min-height:40px;box-shadow:none;transition:border-color .15s}
+.dsh-flat.__mp_root input:hover:not(:disabled),.dsh-flat.__mp_root select:hover:not(:disabled),.dsh-flat.__mp_root textarea:hover:not(:disabled){border-color:var(--dsw-alias-label-tertiary)}
+.dsh-flat.__mp_root select{appearance:none;padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m2 2 4 4 4-4' fill='none' stroke='%23778091' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.dsh-flat.__mp_root :is(input,select,textarea,button,summary,a):focus-visible{outline:2px solid var(--flat-accent);outline-offset:3px}
+.dsh-flat.__mp_root :is(input,select,textarea,button):disabled{opacity:.5;cursor:default}
+.dsh-flat.__mp_root [class$="_actions"]{flex-wrap:wrap;gap:10px;margin-top:4px;padding-top:16px;border-top:1px solid var(--flat-border)}
+.dsh-flat.__mp_root .__mp_grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:16px}
+.dsh-flat.__mp_root .__mp_card{padding:18px;gap:10px;border-radius:6px;background:var(--dsw-alias-bg-layer-3);min-height:146px;transition:border-color .15s}
+.dsh-flat.__mp_root .__mp_card:hover{border-color:var(--flat-accent)}
+.dsh-flat.__mp_root .__mp_name{font-size:14px}
+.dsh-flat.__mp_root .__mp_meta{flex-wrap:wrap}
+.dsh-flat.__mp_root .__mp_toolbar{gap:10px;margin-bottom:18px}
+.dsh-flat.__mp_root .__mp_input{min-width:160px;width:auto}
+.dsh-flat.__mp_root .__mp_select{width:auto}
+.dsh-flat.__mp_root .__mp_detail{border:0;border-left:2px solid var(--flat-border);border-radius:0;background:none;margin:0;padding:4px 0 4px 16px;gap:12px}
+@media(max-width:480px){.dsh-flat.__mp_root{gap:16px}.dsh-flat.__mp_root .__mp_toolbar{align-items:stretch}.dsh-flat.__mp_root .__mp_input{flex-basis:100%}}
+@media(prefers-reduced-motion:reduce){.dsh-flat.__mp_root *,.dsh-flat.__mp_root input[type=checkbox]::before{transition:none}}
+.dsh-flat.__mp_root button:not(.__mp_card){border-radius:6px;min-height:34px;padding:7px 14px;font:inherit;font-size:12px;box-shadow:none}
+.dsh-flat.__mp_root :is(h2,h3){margin:0;font-size:14px;font-weight:600}
+.dsh-flat.__mp_root{display:flex;flex-direction:column}
+`;
     var tagId = "dsh-plugin-marketplace/main.css";
     if (typeof document !== "undefined" && document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") === null) {
       var tag = document.createElement("style");
@@ -435,7 +464,7 @@ window.__ModuleLoader__.load({
         load(s.q, s.sort, 1, false);
       };
       var more = function () { load(s.q, s.sort, s.page + 1, true); };
-      return h("div", null,
+      return h("div", { className: "__mp_root dsh-flat" },
         h("form", { className: "__mp_toolbar", onSubmit: submit },
           h("input", { className: "__mp_input", type: "search", value: s.q, placeholder: t("search"), onChange: function (e) { set(function (prev) { return Object.assign({}, prev, { q: e.target.value }); }); } }),
           h("select", { className: "__mp_select", value: s.sort, onChange: function (e) { load(s.q, e.target.value, 1, false); } },
