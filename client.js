@@ -56,7 +56,7 @@ window.__ModuleLoader__.load({
 .dsh-flat.__mp_root :is(input,select,textarea,button):disabled{opacity:.5;cursor:default}
 .dsh-flat.__mp_root [class$="_actions"]{flex-wrap:wrap;gap:10px;margin-top:4px;padding-top:16px;border-top:1px solid var(--flat-border)}
 .dsh-flat.__mp_root .__mp_grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:16px}
-.dsh-flat.__mp_root .__mp_card{padding:18px;gap:10px;border-radius:6px;background:var(--dsw-alias-bg-layer-3);min-height:146px;transition:border-color .15s}
+.dsh-flat.__mp_root .__mp_card{width:100%;max-width:100%;padding:18px;gap:10px;border-radius:6px;background:var(--dsw-alias-bg-layer-3);min-height:146px;transition:border-color .15s}
 .dsh-flat.__mp_root .__mp_card:hover{border-color:var(--flat-accent)}
 .dsh-flat.__mp_root .__mp_name{font-size:14px}
 .dsh-flat.__mp_root .__mp_meta{flex-wrap:wrap}
@@ -84,6 +84,8 @@ window.__ModuleLoader__.load({
     var inject = ["slots", "locale", "configForms", "connection"];
     var zh = {
       nav: "插件市场",
+      searchBtn: "搜索",
+      sortLabel: "排序方式",
       search: "搜索插件（关键词或留空浏览全部）…",
       sortStars: "按 Star 排序",
       sortUpdated: "按更新时间排序",
@@ -116,6 +118,8 @@ window.__ModuleLoader__.load({
     };
     var en = {
       nav: "Plugin Marketplace",
+      searchBtn: "Search",
+      sortLabel: "Sort plugins",
       search: "Search plugins (keyword, or empty to browse all)…",
       sortStars: "Sort by stars",
       sortUpdated: "Sort by updated",
@@ -467,8 +471,9 @@ window.__ModuleLoader__.load({
       var more = function () { load(s.q, s.sort, s.page + 1, true); };
       return h("div", { className: "__mp_root dsh-flat" },
         h("form", { className: "__mp_toolbar", onSubmit: submit },
-          h("input", { className: "__mp_input", type: "search", value: s.q, placeholder: t("search"), onChange: function (e) { set(function (prev) { return Object.assign({}, prev, { q: e.target.value }); }); } }),
-          h("select", { className: "__mp_select", value: s.sort, onChange: function (e) { load(s.q, e.target.value, 1, false); } },
+          h("input", { className: "__mp_input", type: "search", value: s.q, "aria-label": t("search"), placeholder: t("search"), onChange: function (e) { set(function (prev) { return Object.assign({}, prev, { q: e.target.value }); }); } }),
+          h("button", { type: "submit", className: "__mp_btnPrimary", disabled: s.loading }, t("searchBtn")),
+          h("select", { className: "__mp_select", "aria-label": t("sortLabel"), value: s.sort, onChange: function (e) { load(s.q, e.target.value, 1, false); } },
             h("option", { value: "stars" }, t("sortStars")),
             h("option", { value: "updated" }, t("sortUpdated"))
           )
