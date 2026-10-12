@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
@@ -45,12 +45,12 @@ function cliEntry(runtime = process, exists = existsSync) {
   return candidates.find((candidate) => exists(candidate));
 }
 
-function runInstall(pkg, profile, runtime = process, execute = execFile, exists = existsSync) {
+function runInstall(pkg, profile, runtime = process, execute = executeCaptured, exists = existsSync) {
   return runPlugin(["add", pkg], profile, runtime, execute, exists);
 }
 
 /** Execute package-manager arguments through the active host's official CLI. */
-function runPlugin(command, profile, runtime = process, execute = execFile, exists = existsSync) {
+function runPlugin(command, profile, runtime = process, execute = executeCaptured, exists = existsSync) {
   const bin = cliEntry(runtime, exists);
   if (!bin) return Promise.resolve({ code: 1, stdout: "", stderr: "cannot locate the dsh CLI entry" });
   const args = [...(runtime.versions?.electron ? ["--expose-internals"] : []),
@@ -70,6 +70,34 @@ function runPlugin(command, profile, runtime = process, execute = execFile, exis
       resolve({ code: 1, stdout: "", stderr: String(error.message || error) });
     }
   });
+}
+
+/** Capture diagnostics while giving pnpm an actual null input descriptor. */
+function executeCaptured(executable, args, options, callback) {
+  const child = spawn(executable, args, { env: options.env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  let stdout = "", stderr = "", failure, completed = false, drainTimer;
+  const timer = setTimeout(() => { failure = new Error("package operation timed out"); child.kill(); }, options.timeout);
+  function finish(error) {
+    if (completed) return;
+    completed = true; clearTimeout(timer); clearTimeout(drainTimer); callback(error, stdout, stderr);
+  }
+  const collect = (kind, data) => {
+    if (kind === "stdout") stdout += data; else stderr += data;
+    if (Buffer.byteLength(stdout) + Buffer.byteLength(stderr) > options.maxBuffer) {
+      failure = new Error("package operation output exceeded the capture limit"); child.kill();
+    }
+  };
+  child.stdout.on("data", data => collect("stdout", data));
+  child.stderr.on("data", data => collect("stderr", data));
+  child.on("error", finish);
+  const outcome = (code, signal) => failure || (code === 0 ? null : Object.assign(new Error(`package process exited (${signal || code})`), { code: code || 1 }));
+  // Descendants can retain inherited output handles after the official CLI
+  // exits. Bound the drain using its exit status; callers verify installed files.
+  child.on("exit", (code, signal) => { drainTimer = setTimeout(() => {
+    child.stdout.destroy(); child.stderr.destroy(); finish(outcome(code, signal));
+  }, 2000); });
+  child.on("close", (code, signal) => finish(outcome(code, signal)));
+  return child;
 }
 
 /** Let the current HMR transaction finish, and retry transient write refusals. */

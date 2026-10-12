@@ -1,9 +1,9 @@
 # dsh-plugin-marketplace
 
-Browse GitHub's dsh-plugin topic and manage plugins in the active DSH Web or Desktop profile. Version 0.5.1 requires DSH 0.2.0-rc.2 or later 0.2.x.
+Browse GitHub's dsh-plugin topic and manage plugins in the active DSH Web or Desktop profile. Version 0.5.2 requires DSH 0.2.0-rc.2 or later 0.2.x.
 
 ```sh
-dsh plugin --profile desktop add dsh-plugin-marketplace@0.5.1
+dsh plugin --profile desktop add dsh-plugin-marketplace@0.5.2
 ```
 
 Use the Desktop-provided dsh command (Application → Manage dsh Command); use --profile web for Web. Restart DSH, then open **Plugins → Installed → dsh-plugin-marketplace**.
