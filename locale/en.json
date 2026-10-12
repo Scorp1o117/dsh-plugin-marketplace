@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Plugin marketplace",
-    "description": "Browse, search and install DSH community plugins, with descriptions and installation status."
+    "description": "Install, update and uninstall plugins in the active DSH Desktop or Web profile."
   }
 }

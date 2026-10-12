@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { join } from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+const testHome = mkdtempSync(join(tmpdir(), "dsh-runtime-"));
+const testProfile = { name: "desktop", dir: join(testHome, "profiles", "desktop"), home: testHome };
+mkdirSync(testProfile.dir, { recursive: true });
+writeFileSync(join(testProfile.dir, "package.json"), JSON.stringify({ dependencies: {} }));
+after(() => rmSync(testHome, { recursive: true, force: true }));
 import { activeProfile, cliEntry, runInstall, writeState } from "../runtime.js";
 import { apply } from "../index.js";
 
@@ -81,7 +88,8 @@ test("event consumption waits for HMR completion and reports both request failur
   const transaction = new AsyncLocalStorage();
   let writes = 0;
   let listener;
-  let dispose;
+  const disposers = [];
+  const dispose = () => disposers.forEach(fn => fn());
   const config = { install: { pkg: "invalid package", ts: 1 }, aiExplain: { repo: "owner/repo", ts: 2 } };
   const warnings = [];
   const settings = { update: async (_ns, patch) => {
@@ -93,8 +101,8 @@ test("event consumption waits for HMR completion and reports both request failur
   } };
   const ctx = {
     on: (_event, handler) => { listener = handler; },
-    effect: (fn) => { dispose = fn(); },
-    get: (name) => name === "settings" ? settings : undefined,
+    effect: (fn) => { disposers.push(fn()); },
+    get: (name) => name === "settings" ? settings : name === "profileContext" ? testProfile : undefined,
     logger: { info() {}, warn: (warning) => warnings.push(warning) },
   };
   t.after(() => dispose());
@@ -109,14 +117,16 @@ test("event consumption waits for HMR completion and reports both request failur
   assert.equal(config.aiExplainResult.status, "error");
   assert.equal(config.aiExplainResult.repo, "owner/repo");
   assert.equal(config.aiExplain.repo, "");
-  assert.equal(writes, 2, "state events must not replay consumed requests");
-  assert.deepEqual(warnings, []);
+  assert.equal(writes, 3, "running, failed install, and failed explanation are each reported once");
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /invalid package name/);
 });
 
 test("unload cancels pending request consumption", async () => {
-  let dispose;
+  const disposers = [];
+  const dispose = () => disposers.forEach(fn => fn());
   let writes = 0;
-  apply({ on() {}, effect: (fn) => { dispose = fn(); }, get: () => ({ update: async () => { writes++; } }), logger: { warn() {} } }, { install: { pkg: "invalid package", ts: 1 } });
+  apply({ on() {}, effect: (fn) => { disposers.push(fn()); }, get: () => ({ update: async () => { writes++; } }), logger: { warn() {} } }, { install: { pkg: "invalid package", ts: 1 } });
   dispose();
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(writes, 0);
@@ -125,10 +135,11 @@ test("unload cancels pending request consumption", async () => {
 test("AI explanation streams through the selected model and clears its request", async (t) => {
   const config = { aiExplain: { repo: "owner/example", desc: "description", readme: "readme", ts: 1 } };
   const states = [];
-  let dispose;
+  const disposers = [];
+  const dispose = () => disposers.forEach(fn => fn());
   const ctx = {
-    on() {}, effect: (fn) => { dispose = fn(); },
-    get: () => ({ update: async (_ns, patch) => { Object.assign(config, patch); states.push(patch.aiExplainResult.status); } }),
+    on() {}, effect: (fn) => { disposers.push(fn()); },
+    get: name => name === "profileContext" ? testProfile : ({ update: async (_ns, patch) => { Object.assign(config, patch); if (patch.aiExplainResult) states.push(patch.aiExplainResult.status); } }),
     logger: { info() {}, warn: (message) => assert.fail(message) },
     agentDefaultModel: { currentSelection: () => ({ provider: "stub", model: "test" }) },
     llm: { async *stream(options) {

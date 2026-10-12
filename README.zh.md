@@ -1,110 +1,21 @@
 # dsh-plugin-marketplace
 
-插件跟随 DSH 的语言设置（DSH 0.2.0-rc.2 内置中文和 English），配置页面、状态提示和插件列表名称/简介同步切换。扩展语言使用宿主的回退链。切换语言保留未保存的设置，无需单独选择插件语言。
+浏览 GitHub 的 dsh-plugin 插件，同时管理当前 DSH Web / Desktop Profile 的插件。0.5.0 需要 DSH 0.2.0-rc.2 或后续 0.2.x。
 
-## v0.4.1：桌面端请求闭环
-
-- 一键安装使用当前 Host 的 profile 和数据目录，解析桌面 Host 的 `cli.js`；Electron 子进程启用 `ELECTRON_RUN_AS_NODE=1` 与 `--expose-internals`。
-- 安装和 AI 解释请求延后到 settings/HMR 事务之外处理，状态回写遇到暂时拒绝会重试，启动进程失败会返回安装错误。
-- UI 在等待宿主确认时显示进度；15 秒未确认会显示错误。此超时只针对请求确认，不限制实际安装或模型响应时间。
-- 需要更新到本版本并重启 DSH。GitHub 仓库没有同名 npm 包时，安装仍会明确报错。
-
-## 配置入口（DSH 0.2.0-rc.2 起）
-
-在首页侧边栏打开 **插件 → 已安装 → dsh-plugin-marketplace**，直接在插件详情页配置并保存。配置页注册到官方的 `plugins.bundle.config` 接口；全局设置页不再重复显示配置入口。Web 与桌面版使用相同界面，本版要求 DSH 0.2.0-rc.2 或更新的 0.2.x 版本。现有配置无需迁移。
-
-**GitHub**: [Scorp1o117/dsh-plugin-marketplace](https://github.com/Scorp1o117/dsh-plugin-marketplace) · **npm**: [dsh-plugin-marketplace](https://www.npmjs.com/package/dsh-plugin-marketplace) · [English](README.md)
-
-[![Enhancement Suite](https://img.shields.io/badge/part%20of-Enhancement%20Suite-3964fe)](https://github.com/Scorp1o117/dsh-enhancement-suite) [![npm](https://img.shields.io/npm/v/dsh-enhancement-suite)](https://www.npmjs.com/package/dsh-enhancement-suite)
-
-属于 [DeepSeek Harness Enhancement Suite](https://github.com/Scorp1o117/dsh-enhancement-suite) —— Vision · Soul/Persona · 长期记忆 · 插件市场。
-
-在 DeepSeek Harness **Web UI 里内置的插件市场**：直接在设置页浏览
-[github.com/topics/dsh-plugin](https://github.com/topics/dsh-plugin)，无需打开终端。
-
-- **搜索**：按关键词搜索主题下的插件，按 Star 或更新时间**排序**
-- **插件卡片**：名称、简介、Star 数、语言、更新时间一目了然
-- **详情面板**：GitHub README 摘要、安装命令、仓库 / npm 链接
-- **AI 解释**：一键调用已配置的默认模型，用中文直接告诉你这个插件大概是干嘛的，不用自己啃 README
-- 基于 GitHub 公开搜索 API（浏览器 CORS 直连，无需密钥；未认证限流 60 次/小时）
-- 零客户端依赖（只用 React），无构建步骤 —— 手写 ModuleLoader bundle
-
-## 兼容性（v0.3.7）
-
-已在 DSH `0.1.7-rc.2`（Web）与 `0.2.0-rc.2`（桌面端运行时）的一次性 Profile 验证。桌面端使用独立的 `desktop` Profile；其他预发布版本暂未验证。
-
-## 桌面端安装
-
-在桌面端的“插件”页面安装，或使用桌面端“应用 → 管理 dsh 命令”注册的命令：
-
-```powershell
-dsh plugin --profile desktop add dsh-plugin-marketplace@0.3.7
+```sh
+dsh plugin --profile desktop add dsh-plugin-marketplace@0.5.0
 ```
 
-重启桌面端以加载客户端插件。配置位于 `$DSH_HOME/profiles/desktop`。
+使用 Desktop 提供的 dsh 命令（应用 → 管理 dsh 命令）；Web 改用 --profile web。重启后打开 **插件 → 已安装 → dsh-plugin-marketplace** 配置页。
 
+## 插件管理
 
-## 安装
+展示当前 Profile 的直接依赖与内置 bundle。输入 npm 包名（支持 @scope/name）即可安装；每个已安装插件可以更新到最新版或二次确认卸载，还可刷新列表。更新明确安装 package@latest，能跨过旧版本锁定。内置 bundle 标明由 DSH 自身管理，不能在此覆盖或卸载。间接依赖库不作为独立插件显示。
 
-作为 profile bundle 安装（推荐）：
+Desktop 使用当前宿主携带的 Electron CLI、包管理器与 Desktop Profile。套件和市场的操作按 Profile 串行执行；操作后重新读取真实安装状态，失败时展示错误与部分完成的状态。安装、更新、卸载后需要重启 DSH；市场自身更新或卸载也适用。
 
-```
-dsh plugin --profile web add dsh-plugin-marketplace
-```
+DSH 负责 bundle 的挂载与移除；卸载旧式插件时会结构化清理手动挂载及其配置补丁，保留其它 YAML 配置和注释。设置请求在 HMR 事务外消费，并在卸载插件后取消待处理工作。
 
-或通过包的 `dsh.bundle.patch` 层：把 `dsh-plugin-marketplace` 加进
-`$DSH_HOME/profiles/web/package.json` 的 `dsh.profile.bundles`。
+保留关键词搜索、Star / 更新时间排序、README 预览和使用当前模型的 AI 解释。仓库名未必等于 npm 包名，请核对作者说明；也可直接在管理表单输入实际包名。中英文跟随 DSH。
 
-手动挂载（`$DSH_HOME/profiles/web/cordis.patch.yml`）：
-
-```yaml
-- insert:
-    - id: plugin-marketplace
-      name: 'dsh-plugin-marketplace'
-```
-
-> **从 ≤ 0.2.2 升级？** 如果你之前是手动挂载的，切到 bundle 安装前**先删掉
-> `cordis.patch.yml` 里那一行**——bundle 层自己会插入条目，两行同 id 会让启动
-> 直接报 `duplicate loader entry id: plugin-marketplace`。两种方式二选一，别同时用。
-
-然后重启 `dsh web`（新客户端插件需要重启进程才会被扫描进浏览器清单），打开 **插件 → dsh-plugin-marketplace**。
-
-DSH `0.1.0-rc.7` 起会公开全部已注册的 settings 命名空间，插件市场无需再修改官方文件。
-因此从 `0.2.8` 起最低支持 DSH `0.1.0-rc.7`。仍使用 DSH `0.1.0-rc.6` 的用户
-请锁定 `dsh-plugin-marketplace@0.2.6`；这是最后一个包含旧 settings 白名单兼容
-补丁的版本。
-
-DSH `0.1.2-rc.1` 移除了客户端的 `connection.api`（旧 settings RPC 入口），
-`0.3.1` 起改用 `settingsScope` 自带的 `mutate` 写入（`0.1.2-rc.1` 之前的主机仍走
-旧通道）。注意：非本机回环（如局域网 IP）访问 dsh web 时，DSH 的设置写入是
-进程本地的，安装 / AI 解释请求不会到达宿主。
-
-## 实现方式
-
-| 层 | 文件 | 作用 |
-|---|---|---|
-| 服务端壳 | `index.js` | settings 通道的安装 + AI 解释流程；`dsh.bundle.patch` 让包成为标准 profile bundle |
-| 浏览器端 | `client.js` | 注册 `settings.section` 的 "marketplace" 分区；调用 GitHub 搜索 API；渲染卡片 + 详情；"AI 解释"按钮 |
-| 清单 | `package.json` | `dsh.bundle: { patch: "./cordis.patch.yml" }` + `dsh.client: { platform: "web" }` + `exports["./client"]` —— 被 `dsh-client-modules` 扫描发现 |
-
-浏览器端不需要任何 `dsh.client.inject` 依赖包：只用 `react`（web 运行时自带）和 `slots` / `locale` 客户端服务。
-
-## v0.3.3：写入改为校验而非假定
-
-`writeField` 在走 settings scope 时只检查了 `snapshot.status === "ready"` 就返回成功。
-但 scope 的契约是「完成写入与恢复读取后结算」，**被宿主以 `settings/conflict` 拒绝的
-写入同样会 resolve**——而拒绝之后命名空间依然注册着，恢复读取也会把它重新渲染成
-`ready`，所以这个检查恒真，被拒的写入会被报成成功。
-
-现在改为比对 section 自身的值（`settings-not-applied`），调用方拿到的 `{ok:false}` 才
-真的代表写入没生效。
-
-## 备注
-
-- GitHub 搜索 API 最多返回 1000 条；该主题目前有 280+ 仓库，翻页可以覆盖全部。
-- README 按需按插件拉取，截断到约 1200 字符。
-- 遇到 "rate-limited"：等一小时，或让 web 走带 GitHub token 的代理。
-
-## License
-
-MIT
+运行 npm test 验证 Desktop 路径、HMR、版本更新、卸载清理、内置保护、失败行为与串行执行。

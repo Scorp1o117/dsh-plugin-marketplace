@@ -83,6 +83,9 @@ window.__ModuleLoader__.load({
     var NS = "marketplace";
     var inject = ["slots", "locale", "configForms", "connection"];
     var zh = {
+      manage: "插件管理", installed: "已安装插件", packageName: "npm 包名（支持 @scope/name）", refresh: "刷新列表",
+      updatePlugin: "更新到最新版", removePlugin: "卸载", confirmRemove: "确认卸载", builtin: "内置（随 DSH 更新）",
+      restartHint: "安装、更新或卸载后，请重启 DSH。操作针对当前 Profile。", operationOk: "操作完成", operationError: "操作失败", operationBusy: "正在处理…",
       nav: "插件市场",
       searchBtn: "搜索",
       sortLabel: "排序方式",
@@ -117,6 +120,9 @@ window.__ModuleLoader__.load({
       notExposed: "无法写入插件市场的设置通道：DSH 版本过旧（需 0.1.0-rc.7+）、宿主半端未挂载，或当前页面不是本机回环访问；请通过 127.0.0.1 打开 dsh web 后重试。"
     };
     var en = {
+      manage: "Plugin management", installed: "Installed plugins", packageName: "npm package name (supports @scope/name)", refresh: "Refresh list",
+      updatePlugin: "Update to latest", removePlugin: "Uninstall", confirmRemove: "Confirm uninstall", builtin: "Built-in (updated with DSH)",
+      restartHint: "Restart DSH after installing, updating or uninstalling. Operations target the current profile.", operationOk: "Operation completed", operationError: "Operation failed", operationBusy: "Working…",
       nav: "Plugin Marketplace",
       searchBtn: "Search",
       sortLabel: "Sort plugins",
@@ -356,6 +362,33 @@ window.__ModuleLoader__.load({
       );
     }
 
+    function PluginManager(props) {
+      var t = props.t, channel = props.channel || {};
+      var [pkg, setPkg] = react.useState("");
+      var [confirm, setConfirm] = react.useState("");
+      var inventory = channel.inventory || {};
+      var busy = Boolean(channel.install && channel.install.ts) || channel.installState && channel.installState.status === "running";
+      var disabled = busy || !props.writable;
+      return h("section", { className: "__mp_manager", "aria-label": t("manage") },
+        h("h3", null, t("manage") + (inventory.profile ? " · " + inventory.profile : "")),
+        h("p", { className: "__mp_status" }, t("restartHint")),
+        h("form", { className: "__mp_toolbar", onSubmit: function (event) { event.preventDefault(); if (pkg.trim() && !disabled) props.onAction(pkg.trim(), "install"); } },
+          h("input", { className: "__mp_input", value: pkg, disabled: disabled, "aria-label": t("packageName"), placeholder: t("packageName"), onChange: function (event) { setPkg(event.target.value); } }),
+          h("button", { type: "submit", disabled: disabled || !pkg.trim() }, t("installBtn")),
+          h("button", { type: "button", disabled: disabled, onClick: function () { props.onAction("~refresh", "refresh"); } }, t("refresh"))),
+        h("h3", null, t("installed")),
+        h("ul", { style: { listStyle: "none", padding: 0 } }, (inventory.packages || []).map(function (row) {
+          return h("li", { key: row.name, style: { padding: "12px 0", borderBottom: "1px solid var(--dsw-alias-border-l2)", overflowWrap: "anywhere" } },
+            h("strong", null, row.name), " ", row.version || "—", " ",
+            row.managed ? h("span", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 } },
+              h("button", { type: "button", disabled: disabled, onClick: function () { props.onAction(row.name, "update"); } }, t("updatePlugin")),
+              h("button", { type: "button", disabled: disabled, onClick: function () { if (confirm !== row.name) setConfirm(row.name); else { setConfirm(""); props.onAction(row.name, "remove"); } } }, t(confirm === row.name ? "confirmRemove" : "removePlugin")))
+              : h("span", null, t("builtin")));
+        })),
+        channel.installState && channel.installState.status !== "idle" ? h("p", { role: channel.installState.status === "error" ? "alert" : "status", className: "__mp_status" },
+          t(channel.installState.status === "running" ? "operationBusy" : channel.installState.status === "error" ? "operationError" : "operationOk") + ": " + (channel.installState.pkg || "") + (channel.installState.status === "error" ? " · " + channel.installState.message : "")) : null);
+    }
+
     function MarketplaceSection(props) {
       useLocale(props.locale);
       var t = props.t;
@@ -403,9 +436,9 @@ window.__ModuleLoader__.load({
         if (detail && detail.code === "settings-not-exposed") return { key: "notExposed" };
         return { key: "", detail: String(detail && (detail.message || detail.code) || fallback) };
       };
-      var onInstall = react.useCallback(function (pkg) {
+      var onInstall = react.useCallback(function (pkg, action) {
         set(function (prev) { return Object.assign({}, prev, { installError: null }); });
-        writeField(scope, api, "install", { pkg: pkg, ts: Date.now() }).then(function (result) {
+        writeField(scope, api, "install", { pkg: pkg, action: action || "install", ts: Date.now() }).then(function (result) {
           if (!result.ok) {
             set(function (prev) { return Object.assign({}, prev, { installError: mutateError(result.error, "unknown") }); });
           }
@@ -470,6 +503,7 @@ window.__ModuleLoader__.load({
       };
       var more = function () { load(s.q, s.sort, s.page + 1, true); };
       return h("div", { className: "__mp_root dsh-flat" },
+        h(PluginManager, { channel: channel, t: t, onAction: onInstall, writable: installState && installState.writable }),
         h("form", { className: "__mp_toolbar", onSubmit: submit },
           h("input", { className: "__mp_input", type: "search", value: s.q, "aria-label": t("search"), placeholder: t("search"), onChange: function (e) { set(function (prev) { return Object.assign({}, prev, { q: e.target.value }); }); } }),
           h("button", { type: "submit", className: "__mp_btnPrimary", disabled: s.loading }, t("searchBtn")),

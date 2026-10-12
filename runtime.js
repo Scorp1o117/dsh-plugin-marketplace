@@ -46,10 +46,15 @@ function cliEntry(runtime = process, exists = existsSync) {
 }
 
 function runInstall(pkg, profile, runtime = process, execute = execFile, exists = existsSync) {
+  return runPlugin(["add", pkg], profile, runtime, execute, exists);
+}
+
+/** Execute package-manager arguments through the active host's official CLI. */
+function runPlugin(command, profile, runtime = process, execute = execFile, exists = existsSync) {
   const bin = cliEntry(runtime, exists);
   if (!bin) return Promise.resolve({ code: 1, stdout: "", stderr: "cannot locate the dsh CLI entry" });
   const args = [...(runtime.versions?.electron ? ["--expose-internals"] : []),
-    bin, "plugin", "--profile", profile.name, "add", pkg];
+    bin, "plugin", "--profile", profile.name, ...command];
   return new Promise((resolve) => {
     try {
       execute(runtime.execPath, args, {
@@ -79,4 +84,4 @@ async function writeState(settings, ns, patch, wait = (ms) => new Promise((resol
   }
 }
 
-export { activeProfile, cliEntry, runInstall, writeState };
+export { activeProfile, cliEntry, runInstall, runPlugin, writeState };
