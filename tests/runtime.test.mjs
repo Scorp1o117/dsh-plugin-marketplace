@@ -36,10 +36,12 @@ test("packaged Electron without argv[1] uses its bundled CLI and Node environmen
     assert.deepEqual(args, ["--expose-internals", entry, "plugin", "--profile", "mktest", "add", "test-package"]);
     assert.equal(options.env.ELECTRON_RUN_AS_NODE, "1");
     assert.equal(options.env.DSH_HOME, profile.home);
+    assert.equal(options.env.CI, "true");
     assert.equal(options.windowsHide, true);
     callback({ code: 1 }, "", "package not found");
+    return { stdin: { end() { called++; } } };
   }, (file) => file === entry);
-  assert.equal(called, 1);
+  assert.equal(called, 2, "spawn input is closed after launching non-interactive package management");
   assert.equal(result.code, 1);
   assert.equal(result.stderr, "package not found");
 });

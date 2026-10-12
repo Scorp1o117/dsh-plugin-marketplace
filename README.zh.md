@@ -1,9 +1,9 @@
 # dsh-plugin-marketplace
 
-浏览 GitHub 的 dsh-plugin 插件，同时管理当前 DSH Web / Desktop Profile 的插件。0.5.0 需要 DSH 0.2.0-rc.2 或后续 0.2.x。
+浏览 GitHub 的 dsh-plugin 插件，同时管理当前 DSH Web / Desktop Profile 的插件。0.5.1 需要 DSH 0.2.0-rc.2 或后续 0.2.x。
 
 ```sh
-dsh plugin --profile desktop add dsh-plugin-marketplace@0.5.0
+dsh plugin --profile desktop add dsh-plugin-marketplace@0.5.1
 ```
 
 使用 Desktop 提供的 dsh 命令（应用 → 管理 dsh 命令）；Web 改用 --profile web。重启后打开 **插件 → 已安装 → dsh-plugin-marketplace** 配置页。

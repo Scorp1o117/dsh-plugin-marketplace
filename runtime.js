@@ -57,12 +57,15 @@ function runPlugin(command, profile, runtime = process, execute = execFile, exis
     bin, "plugin", "--profile", profile.name, ...command];
   return new Promise((resolve) => {
     try {
-      execute(runtime.execPath, args, {
-        env: { ...runtime.env, DSH_HOME: profile.home, ELECTRON_RUN_AS_NODE: "1" },
+      const child = execute(runtime.execPath, args, {
+        env: { ...runtime.env, DSH_HOME: profile.home, ELECTRON_RUN_AS_NODE: "1", CI: runtime.env.CI || "true" },
         timeout: 5 * 60 * 1000,
         maxBuffer: 8 * 1024 * 1024,
         windowsHide: true,
       }, (error, stdout, stderr) => resolve({ code: error ? (error.code ?? 1) : 0, stdout, stderr }));
+      // Package management is non-interactive. An open input pipe can keep
+      // Desktop's pnpm process alive after it has printed its completion.
+      child?.stdin?.end();
     } catch (error) {
       resolve({ code: 1, stdout: "", stderr: String(error.message || error) });
     }
