@@ -66,7 +66,7 @@ test('pending install and explanation requests show progress and a missing ackno
   assert.deepEqual(timers.map(timer => timer.ms), [15000, 15000]);
   timers.forEach(timer => timer.callback());
   assert.equal(state.installError.key, 'hostTimeout');
-  assert.equal(state.explainError.key, 'hostTimeout');
+  assert.equal(state.explainErrors['owner/example'].key, 'hostTimeout');
   disposeInstall(); disposeExplain();
   assert.equal(cleared.length, 2);
 });

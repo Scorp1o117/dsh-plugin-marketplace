@@ -1,3 +1,11 @@
+# v0.5.3 validation — 2026-10-14
+
+- Inspected the actual Desktop 0.2.0-rc.2 bundled settings client: `ConfigForms.get(entryId)` caches provider-owned controllers, and the provider disposes them on shutdown. Page cleanup now removes only its own subscription.
+- All 30 tests passed, including repeated unmount/remount followed by install/update/remove/refresh/AI writes, repository-specific failure rendering, stalled-write timeouts, and acknowledgement/unmount timer cleanup. `node --check client.js` and `git diff --check` passed.
+- Installed the packed 0.5.3 tarball through the real packaged Desktop CLI into an isolated Desktop profile and started the packaged runtime. Marketplace registered and the page displayed v0.5.3 with the correct profile inventory.
+- Browser navigation from the marketplace to the plugin list and back, followed by refresh, produced a persisted `installState.status: ok`. Patch SHA256 changed from `38EE2BED3EEC35C4072315E2FEA2B0EA0F911DF05D761B37B8F8C607225C35C3` to `1930487211316609B56B35BF64BE7726B774A4F49ED292614C2F82F12FFC51E8`.
+- An AI request after that navigation reached the Host and persisted a matching repository result. The isolated profile has no configured model, so it returned `model produced no text`; successful model generation is covered by the streaming runtime regression test.
+
 # v0.5.2 validation — 2026-10-12
 
 - Full npm test passed (26 tests), including pinned-version update arguments, structural YAML cleanup, failed operations, built-in protection, HMR and profile serialization.

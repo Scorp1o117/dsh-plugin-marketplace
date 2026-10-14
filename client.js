@@ -352,7 +352,7 @@ window.__ModuleLoader__.load({
             onClick: function () { props.onExplain(p.fullName, p.desc, props.readme || ""); }
           }, props.t("aiExplain")),
           h("div", { id: "__mp_translateOut", style: { fontSize: "12px", lineHeight: "1.6", color: "var(--dsw-alias-label-secondary, #8b949e)", whiteSpace: "pre-wrap", wordBreak: "break-word", marginTop: "8px", borderTop: "1px solid var(--dsw-alias-border, #21262d)", paddingTop: "8px" } },
-            explainMine && props.explainError ? h("span", { style: { color: "var(--dsw-alias-state-danger-text, #f85149)" } }, props.explainError)
+            props.explainError ? h("span", { role: "alert", style: { color: "var(--dsw-alias-state-danger-text, #f85149)" } }, props.explainError)
               : explainMine && explainState.status === "running" ? props.t("aiExplaining")
               : explainMine && explainState.status === "error" ? props.t("aiExplainErr").replace("{msg}", explainState.text || "unknown")
               : explainMine && explainState.status === "ok" ? explainState.text
@@ -404,31 +404,37 @@ window.__ModuleLoader__.load({
         var sync = function () { if (alive) setInstallState(scope.getSnapshot()); };
         sync();
         var un = typeof scope.subscribe === "function" ? scope.subscribe(sync) : null;
-        return function () { alive = false; if (un) un(); if (scope.dispose) scope.dispose(); };
+        // configForms.get() returns a provider-owned, namespace-cached form.
+        // Page navigation owns only this subscription, never the shared form.
+        return function () { alive = false; if (un) un(); };
       }, [scope]);
       var channel = installState && installState.status === "ready" ? installState.value : {};
-      var installRequest = channel.install || {};
-      var explainRequest = channel.aiExplain || {};
+      // Start feedback before mutate settles, including a stalled write. Once
+      // settled, the shared channel tracks the Host's acknowledgement instead.
+      var installRequest = s.installPending && s.installPending.writing ? s.installPending : channel.install || {};
+      var explainRequest = s.explainPending && s.explainPending.writing ? s.explainPending : channel.aiExplain || {};
+      var explainErrors = s.explainErrors || {};
       react.useEffect(function () {
-        if (!installRequest.pkg || !installRequest.ts) return;
+        if (!installRequest.pkg || !installRequest.ts || s.installError) return;
         var timer = setTimeout(function () {
           set(function (prev) { return Object.assign({}, prev, { installError: { key: "hostTimeout" } }); });
         }, 15000);
         return function () { clearTimeout(timer); };
-      }, [installRequest.pkg, installRequest.ts, t]);
+      }, [installRequest.pkg, installRequest.ts, s.installError]);
       react.useEffect(function () {
-        if (!explainRequest.repo || !explainRequest.ts) return;
+        if (!explainRequest.repo || !explainRequest.ts || explainErrors[explainRequest.repo]) return;
+        var repo = explainRequest.repo;
         var timer = setTimeout(function () {
-          set(function (prev) { return Object.assign({}, prev, { explainError: { key: "hostTimeout" } }); });
+          set(function (prev) { return Object.assign({}, prev, { explainErrors: Object.assign({}, prev.explainErrors, { [repo]: { key: "hostTimeout" } }) }); });
         }, 15000);
         return function () { clearTimeout(timer); };
-      }, [explainRequest.repo, explainRequest.ts, t]);
+      }, [explainRequest.repo, explainRequest.ts, explainErrors[explainRequest.repo]]);
       // Pending requests immediately show progress, before the Host acknowledges.
       var visibleInstall = installRequest.pkg ? {
         status: s.installError ? "error" : "running", pkg: installRequest.pkg, message: messageText(t, s.installError)
       } : channel.installState;
       var visibleExplain = explainRequest.repo ? {
-        status: s.explainError ? "error" : "running", repo: explainRequest.repo, text: messageText(t, s.explainError)
+        status: explainErrors[explainRequest.repo] ? "error" : "running", repo: explainRequest.repo, text: messageText(t, explainErrors[explainRequest.repo])
       } : channel.aiExplainResult;
       // Older hosts can still return settings-not-exposed. Recommend upgrading
       // instead of mutating the installed DSH package on disk.
@@ -437,20 +443,26 @@ window.__ModuleLoader__.load({
         return { key: "", detail: String(detail && (detail.message || detail.code) || fallback) };
       };
       var onInstall = react.useCallback(function (pkg, action) {
-        set(function (prev) { return Object.assign({}, prev, { installError: null }); });
-        writeField(scope, api, "install", { pkg: pkg, action: action || "install", ts: Date.now() }).then(function (result) {
-          if (!result.ok) {
-            set(function (prev) { return Object.assign({}, prev, { installError: mutateError(result.error, "unknown") }); });
-          }
+        var request = { pkg: pkg, action: action || "install", ts: Date.now() };
+        var pending = Object.assign({ writing: true }, request);
+        set(function (prev) { return Object.assign({}, prev, { installError: null, installPending: pending }); });
+        writeField(scope, api, "install", request).then(function (result) {
+          set(function (prev) {
+            if (prev.installPending !== pending) return prev;
+            return Object.assign({}, prev, { installPending: null, installError: result.ok ? null : mutateError(result.error, "unknown") });
+          });
         });
       }, [scope, api, t]);
       // AI-explain request: the host answers over the same settings channel.
       var onExplain = react.useCallback(function (repo, desc, readme) {
-        set(function (prev) { return Object.assign({}, prev, { explainError: null }); });
-        writeField(scope, api, "aiExplain", { repo: repo, desc: desc, readme: readme, ts: Date.now() }).then(function (result) {
-          if (!result.ok) {
-            set(function (prev) { return Object.assign({}, prev, { explainError: mutateError(result.error, "unknown") }); });
-          }
+        var request = { repo: repo, desc: desc, readme: readme, ts: Date.now() };
+        var pending = Object.assign({ writing: true }, request);
+        set(function (prev) { return Object.assign({}, prev, { explainPending: pending, explainErrors: Object.assign({}, prev.explainErrors, { [repo]: null }) }); });
+        writeField(scope, api, "aiExplain", request).then(function (result) {
+          set(function (prev) {
+            if (prev.explainPending !== pending) return prev;
+            return Object.assign({}, prev, { explainPending: null, explainErrors: Object.assign({}, prev.explainErrors, { [repo]: result.ok ? null : mutateError(result.error, "unknown") }) });
+          });
         });
       }, [scope, api, t]);
       var load = react.useCallback(function (q, sort, page, append) {
@@ -520,7 +532,7 @@ window.__ModuleLoader__.load({
             var open = s.open && s.open.fullName === p.fullName;
             return h("div", { key: p.fullName, className: "__mp_item" },
               h(PluginCard, { plugin: p, t: t, onOpen: function () { openDetail(p); } }),
-              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: visibleInstall, onInstall: onInstall, ghError: t("ghError"), explainState: visibleExplain, explainError: messageText(t, s.explainError), onExplain: onExplain, bundleInfo: s.bundleInfo }) : null
+              open ? h(DetailPanel, { plugin: s.open, t: t, readme: s.readme, readmeLoading: s.readmeLoading, readmeError: s.readmeError, readmeRateLimited: s.readmeRateLimited, lang: s.open.lang, installState: visibleInstall, onInstall: onInstall, ghError: t("ghError"), explainState: visibleExplain, explainError: messageText(t, explainErrors[p.fullName]), onExplain: onExplain, bundleInfo: s.bundleInfo }) : null
             );
           })
         ),
