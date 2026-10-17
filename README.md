@@ -1,5 +1,9 @@
 # dsh-plugin-marketplace
 
+## DSH 0.2.1-rc.1
+
+Supports DSH 0.2.1-rc.1. Compatibility is declared through `engines.dsh` and matching peer ranges, including this exact prerelease. The existing 0.2.0-rc.2 support is retained.
+
 Browse GitHub's dsh-plugin topic and manage plugins in the active DSH Web or Desktop profile. Version 0.5.2 requires DSH 0.2.0-rc.2 or later 0.2.x.
 
 ```sh

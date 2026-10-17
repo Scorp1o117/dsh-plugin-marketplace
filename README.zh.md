@@ -1,5 +1,9 @@
 # dsh-plugin-marketplace
 
+## DSH 0.2.1-rc.1
+
+支持 DSH 0.2.1-rc.1，通过 `engines.dsh` 和一致的 peer 范围声明兼容，明确包含该预发布版本，并保留已有 0.2.0-rc.2 支持。
+
 浏览 GitHub 的 dsh-plugin 插件，同时管理当前 DSH Web / Desktop Profile 的插件。0.5.2 需要 DSH 0.2.0-rc.2 或后续 0.2.x。
 
 ```sh
