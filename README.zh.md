@@ -1,5 +1,9 @@
 # dsh-plugin-marketplace
 
+## DSH 0.2.1-rc.3
+
+适配 DSH 0.2.1-rc.3，明确声明该预发布版本的 engines.dsh 与 peer 范围，开发 SDK 钉在 rc.3。宿主新增侧栏/会话「更多」导航菜单（其中「浏览其他插件／创建你的插件」入口直达插件市场）、修复新建会话丢失未发送草稿、DeepSeek API Key 路由改跟随官方 /models 模型列表；本插件使用的 plugin-manager、settings 与 llm 接口保持不变，也未使用任何被移除的宿主 API（`ctx.layout.entryVisibility`、`agentPresetNavigation`）。
+
 ## DSH 0.2.1-rc.2
 
 适配 DSH 0.2.1-rc.2，明确声明该预发布版本的 engines.dsh 与 peer 范围。宿主新增 DeepSeek V4.1 Flash 1017 及 Search/Fetch API，本插件使用的接口保持不变。保留已有推理配置及自动补齐显式开启策略。
