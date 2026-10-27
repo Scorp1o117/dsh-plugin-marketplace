@@ -1,35 +1,39 @@
-# dsh-plugin-marketplace
+# DSH Plugin Marketplace
 
-## DSH 0.2.1-rc.3
+简体中文 | [English](README.en.md)
 
-Supports DSH 0.2.1-rc.3, including explicit prerelease engines.dsh and peer ranges, with development SDKs pinned to rc.3. This host update adds More navigation menus (which also expose Browse other plugins / Create your plugin entries that reach the marketplace), keeps unsent drafts on New Session, and follows the official /models listing on the DeepSeek API-key route; the plugin-manager, settings and llm interfaces used here remain unchanged, and no removed host API (`ctx.layout.entryVisibility`, `agentPresetNavigation`) was in use.
+在 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 中浏览社区插件，并管理当前 Web 或 Desktop Profile 中安装的插件。
 
-## DSH 0.2.1-rc.2
+## 功能
 
-Supports DSH 0.2.1-rc.2, including explicit prerelease engines.dsh and peer ranges. This host update adds DeepSeek V4.1 Flash 1017 and Search/Fetch APIs; the plugin APIs used here remain unchanged. Existing reasoning settings and the opt-in augmentation policy are preserved.
+- **发现插件**：浏览 GitHub 上的 `dsh-plugin` 项目，按关键词搜索、Star 数或更新时间排序，预览 README。
+- **AI 解释**：使用当前配置的模型解释插件；是否可用取决于模型连接。
+- **管理插件**：输入 npm 包名安装，查看当前 Profile 的直接依赖，更新到最新版或确认卸载。内置 bundle 标记为由 DSH 管理，不能在这里覆盖或卸载；间接依赖不会显示为独立插件。
+- **查看真实结果**：套件与市场的操作按 Profile 串行执行；失败时显示错误及可能已经完成的部分，再刷新实际安装状态。
 
-## DSH 0.2.1-rc.1
+> GitHub 仓库名不一定等于 npm 包名。安装前请核对插件作者提供的包名和使用说明；插件市场不会替你保证第三方插件的安全性。
 
-Supports DSH 0.2.1-rc.1. Compatibility is declared through `engines.dsh` and matching peer ranges, including this exact prerelease. The existing 0.2.0-rc.2 support is retained.
+## 兼容性与安装
 
-Browse GitHub's dsh-plugin topic and manage plugins in the active DSH Web or Desktop profile. Version 0.5.2 requires DSH 0.2.0-rc.2 or later 0.2.x.
+支持 DSH Web / Desktop；仓库声明兼容 `0.2.0-rc.2`、`0.2.1-rc.1` / `rc.2` / `rc.3` 和符合 `>=0.2.0-rc.2 <0.3.0` 的版本，预发布版本范围见 [package.json](package.json)。要求 Node.js `>=20.18`。
+
+Desktop 先在 **应用 → 管理 dsh 命令** 安装桌面版 `dsh`：
 
 ```sh
-dsh plugin --profile desktop add dsh-plugin-marketplace@0.5.2
+dsh plugin --profile desktop add dsh-plugin-marketplace
 ```
 
-Use the Desktop-provided dsh command (Application → Manage dsh Command); use --profile web for Web. Restart DSH, then open **Plugins → Installed → dsh-plugin-marketplace**.
+Web 将 `desktop` 改为 `web`。安装后重启 DSH，打开 **插件 → 已安装 → dsh-plugin-marketplace**。也可通过 [Enhancement Suite](https://github.com/Scorp1o117/dsh-enhancement-suite) 安装。
 
-## Plugin management
+## 使用
 
-The configuration page lists the active profile's direct dependencies and built-in bundles. Enter an npm package name (including scoped names) to install, update individual installed packages to latest, refresh the list, or uninstall with an inline confirmation. Updates explicitly resolve package@latest, including dependencies pinned to an older version. Built-in bundles are listed as managed by DSH and cannot be overwritten or removed here. Transitive libraries are not independent profile plugins.
+1. 浏览或搜索社区插件，阅读项目介绍和安装说明。
+2. 在管理表单输入准确的 npm 包名，例如 `package-name` 或 `@scope/package-name`。
+3. 安装、更新或确认卸载；检查返回的状态和错误。
+4. 操作完成后重启 DSH。更新或卸载市场自身也需要重启。
 
-Operations use the official CLI carried by the current Host. Desktop uses its bundled Electron CLI and package manager with its own profile; it does not invoke the global Web CLI or the Desktop Host entry as a CLI. Operations are serialized across the suite and marketplace. Results refresh the actual installed inventory; a failed batch reports its failure and any partial installed state. Restart DSH after package changes, including updating or uninstalling this marketplace itself.
+Desktop 操作使用当前桌面宿主提供的 CLI 和包管理器，并作用于 Desktop Profile；Web 作用于对应 Web Profile。卸载旧式插件时会清理其手动挂载和配置补丁，保留其他 YAML 配置及注释。界面语言跟随 DSH。
 
-Bundle registration/removal is reconciled by DSH. Legacy manual mounts and their configuration patches are removed structurally on uninstall. Unrelated YAML configuration and comments are preserved. Settings requests are acknowledged outside HMR and consumed once; pending work is cancelled on unload.
+## 开发与反馈
 
-The GitHub browser retains explicit search, star/update sorting, README previews and AI explanations using the configured model. Package names inferred from repository names should be checked against the author's installation instructions; the management form also accepts an explicit npm name. Both Chinese and English follow the DSH language setting.
-
-## Validation
-
-npm test covers Desktop CLI routing, state writes, HMR, localization, pinned updates, uninstall cleanup, built-in protection, failed operations and serialization.
+`npm test` 覆盖 Desktop 路径、安装更新、卸载清理、内置保护与失败处理。[npm](https://www.npmjs.com/package/dsh-plugin-marketplace) · [问题反馈](https://github.com/Scorp1o117/dsh-plugin-marketplace/issues) · [MIT License](LICENSE)。
