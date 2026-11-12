@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-marketplace",
-  "version": "0.5.8",
+  "version": "0.5.9",
   "description": "Discover, install, update and uninstall plugins in the active DSH Desktop or Web profile.",
   "type": "module",
   "main": "index.js",
@@ -20,7 +20,7 @@
       "platform": "web"
     },
     "compatibility": {
-      "dsh": ">=0.2.0-rc.2 <0.3.0 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-rc.1",
+      "dsh": ">=0.2.0-rc.2 <0.3.0 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-rc.1 || 0.2.2-rc.2",
       "dshReleases": {
         "0.1.5-rc.2": "incompatible",
         "0.1.5-rc.3": "incompatible",
@@ -36,7 +36,8 @@
         "0.2.1-rc.3": "compatible",
         "0.2.1-rc.4": "compatible",
         "0.2.1-rc.5": "compatible",
-        "0.2.2-rc.1": "compatible"
+        "0.2.2-rc.1": "compatible",
+        "0.2.2-rc.2": "compatible"
       },
       "node": ">=20.18",
       "profiles": [
@@ -72,7 +73,7 @@
   "license": "MIT",
   "engines": {
     "node": ">=20.18",
-    "dsh": ">=0.2.0-rc.2 <0.3.0 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-rc.1"
+    "dsh": ">=0.2.0-rc.2 <0.3.0 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-rc.1 || 0.2.2-rc.2"
   },
   "repository": {
     "type": "git",
@@ -82,8 +83,8 @@
     "url": "https://github.com/Scorp1o117/dsh-plugin-marketplace/issues"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-llm": ">=0.2.0-rc.2 <0.3.0 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-rc.1",
-    "@deepseek-ai/dsh-settings": ">=0.2.0-rc.2 <0.3.0 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-rc.1",
+    "@deepseek-ai/dsh-llm": ">=0.2.0-rc.2 <0.3.0 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-rc.1 || 0.2.2-rc.2",
+    "@deepseek-ai/dsh-settings": ">=0.2.0-rc.2 <0.3.0 || 0.2.1-rc.1 || 0.2.1-rc.2 || 0.2.1-rc.3 || 0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-rc.1 || 0.2.2-rc.2",
     "react": "^18.2.0"
   },
   "dependencies": {
@@ -91,7 +92,7 @@
     "yaml": "^2.8.1"
   },
   "devDependencies": {
-    "@deepseek-ai/dsh-llm": "0.2.2-rc.1",
-    "@deepseek-ai/dsh-settings": "0.2.2-rc.1"
+    "@deepseek-ai/dsh-llm": "0.2.2-rc.2",
+    "@deepseek-ai/dsh-settings": "0.2.2-rc.2"
   }
 }
