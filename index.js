@@ -118,7 +118,7 @@ function apply(ctx, config) {
       ctx.logger.info(`[plugin-marketplace] explaining ${repo} (model=${route ? `${route.provider}/${route.model}` : "default"})…`);
       const messages = [createUserMessage({
         content: [{ type: "text", text: prompt }],
-        source: { kind: "plugin", plugin: "dsh-plugin-marketplace" },
+        source: { kind: "plugin:dsh-plugin-marketplace" },
       })];
       const options = {
         messages,
